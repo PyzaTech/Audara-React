@@ -1,0 +1,54 @@
+MIT License
+
+Copyright (c) 2025 PyzaTech
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+1. Attribution Requirement:
+   All original authorship credits — including but not limited to code comments,
+   in-app text, UI credits, documentation mentions, or README files — must be
+   preserved in any and all modified versions, forks, or redistributions of the
+   Software.
+
+   a. You may add your name as a contributor or modifier, but you may not remove,
+      obscure, or misrepresent the identity of the original author(s).
+
+   b. Any representation of authorship or credit — including but not limited to
+      the phrase "created by PyzaTech" — must remain clearly visible,
+      legible, and unaltered in all places where it originally appeared in the
+      Software, including user interfaces, documentation, and source files.
+
+
+2. Source Disclosure Requirement:
+   Any redistribution of this Software, whether modified or unmodified, must be
+   accompanied by access to the complete corresponding source code.
+
+   a. This includes, but is not limited to, all code necessary to build, modify,
+      and use the distributed version of the Software.
+
+   b. The source code must be made available via a public repository or included
+      directly with the distribution in a readable form.
+
+3. Legal Enforcement and Penalty Clause:
+   Removal or alteration of any original credits, or false claims of authorship,
+   constitutes a material breach of this license.
+
+   a. The original author reserves the right to pursue legal action, including
+      statutory damages, injunctions, and court costs.
+
+   b. Each instance of improper credit removal, misattribution, failure to disclose
+      source code, or willful violation of these terms will incur a minimum penalty
+      of $1,000 USD per infraction, owed to the original copyright holder.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
