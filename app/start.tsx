@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function StartScreen() {
   const router = useRouter();
@@ -31,6 +32,14 @@ export default function StartScreen() {
       <Text style={styles.footerText}>
         By continuing, you agree to Audara’s Terms of Service and Privacy Policy.
       </Text>
+
+      {/* Change Server Button */}
+      <Pressable style={styles.changeServerButton} onPress={async () => {
+        await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password', 'server_url']);
+        router.push('/select_server')
+      }}>
+        <Text style={styles.changeServerText}>Change Server</Text>
+      </Pressable>
     </View>
   );
 }
@@ -109,5 +118,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     paddingHorizontal: 20,
+  },
+  changeServerButton: {
+    position: 'absolute',
+    bottom: 30,
+  },
+  changeServerText: {
+    color: '#1DB954',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });

@@ -1,13 +1,13 @@
 // loading_screen.tsx
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useWebSocket } from './context/WebSocketContext';
 
 export default function LoadingScreen() {
   const router = useRouter();
-  const { connect, disconnect, sessionKey, isConnected } = useWebSocket();
+  const { connect, disconnect, sessionKey, isConnected, sendEncryptedMessage, addMessageListener, removeMessageListener } = useWebSocket();
 
   useEffect(() => {
     let initialized = false;
@@ -17,7 +17,7 @@ export default function LoadingScreen() {
       const username = await AsyncStorage.getItem('username');
       const password = await AsyncStorage.getItem('password');
 
-      if (!url) {
+      if (!url || url.startsWith("")) {
         router.replace('/select_server');
         return;
       }
@@ -43,6 +43,32 @@ export default function LoadingScreen() {
   // ✅ Watch for sessionKey and navigate when ready
   useEffect(() => {
     if (isConnected && sessionKey) {
+        useEffect(() => {
+    if (!sessionKey) return; // wait for sessionKey before listening
+
+    const handleLoginResponse = (data: any) => {
+      console.log('🔐 Login response received:', data);
+
+      if (data.success) {
+        console.log('✅ Login successful:', data);
+
+        AsyncStorage.setItem('username', data.username);
+        AsyncStorage.setItem('password', data.password);
+
+        router.replace('/home');
+      } else {
+        console.log('❌ Login failed:', data.error);
+        Alert.alert('Login Failed', data.error || 'Unknown error');
+      }
+    };
+
+
+    addMessageListener('login', handleLoginResponse);
+
+    return () => {
+      removeMessageListener('login', handleLoginResponse);
+    };
+  }, [sessionKey, addMessageListener, removeMessageListener, router]);
       autoLogin();
     }
   }, [isConnected, sessionKey]);
@@ -56,12 +82,33 @@ export default function LoadingScreen() {
       return;
     }
 
+    sendEncryptedMessage({
+      action: 'login',
+      username: username.trim(),
+      password: password.trim(),
+    });
+
     // You can send the login message here if you want:
     // Example:
     // sendEncryptedMessage({ action: 'login', username, password });
 
-    router.replace('/home');
   };
+
+const handleLoginResponse = (data: any) => {
+      console.log('🔐 Login response received:', data);
+
+      if (data.success) {
+        console.log('✅ Login successful:', data);
+
+        AsyncStorage.setItem('username', data.username);
+        AsyncStorage.setItem('password', data.password);
+
+        router.replace('/home');
+      } else {
+        console.log('❌ Login failed:', data.error);
+        Alert.alert('Login Failed', data.error || 'Unknown error');
+      }
+};
 
   return (
     <View style={styles.loading}>

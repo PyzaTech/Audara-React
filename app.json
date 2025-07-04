@@ -2,7 +2,7 @@
   "expo": {
     "name": "Audara",
     "slug": "Audara",
-    "version": "1.0.0",
+    "version": "beta-0.0.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
