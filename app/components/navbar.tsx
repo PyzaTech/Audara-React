@@ -1,68 +1,88 @@
+import { router } from 'expo-router';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type NavBarProps = {
+type BottomNavBarProps = {
   currentTab: 'home' | 'search' | 'library';
   onTabChange: (tab: 'home' | 'search' | 'library') => void;
 };
 
-export default function BottomNavBar({ currentTab, onTabChange }: NavBarProps) {
+export default function BottomNavBar({ currentTab, onTabChange }: BottomNavBarProps) {
+  const insets = useSafeAreaInsets();
+
+  const handlePress = (tab: 'home' | 'search' | 'library') => {
+    onTabChange(tab);
+    router.replace(tab); // replace with tab route
+  };
+
   return (
-    <View style={styles.navBar}>
-      <NavItem
+    <View style={[styles.navbar, { paddingBottom: insets.bottom }]}>
+      <NavButton
+        iconName="home"
         label="Home"
+        onPress={() => handlePress('home')}
         active={currentTab === 'home'}
-        onPress={() => onTabChange('home')}
       />
-      <NavItem
+      <NavButton
+        iconName="search"
         label="Search"
+        onPress={() => handlePress('search')}
         active={currentTab === 'search'}
-        onPress={() => onTabChange('search')}
       />
-      <NavItem
-        label="Your Library"
+      <NavButton
+        iconName="library"
+        label="Library"
+        onPress={() => handlePress('library')}
         active={currentTab === 'library'}
-        onPress={() => onTabChange('library')}
       />
     </View>
   );
 }
 
-function NavItem({
-  label,
-  active,
-  onPress,
-}: {
+type NavButtonProps = {
+  iconName: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
-  active: boolean;
   onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity onPress={onPress} style={styles.navItem}>
-      <Text style={[styles.navText, active && styles.navTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
+  active?: boolean;
+};
+
+const NavButton = ({ iconName, label, onPress, active }: NavButtonProps) => (
+  <TouchableOpacity style={styles.navButton} onPress={onPress}>
+    <Ionicons
+      name={iconName}
+      size={24}
+      color={active ? '#1DB954' : 'white'}
+    />
+    <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
-  navBar: {
+  navbar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     height: 60,
+    backgroundColor: '#282828',
     flexDirection: 'row',
-    backgroundColor: '#121212',
-    borderTopWidth: 1,
-    borderTopColor: '#282828',
     justifyContent: 'space-around',
     alignItems: 'center',
+    borderTopColor: '#333',
+    borderTopWidth: 1,
   },
-  navItem: {
-    flex: 1,
+  navButton: {
     alignItems: 'center',
+    flex: 1,
   },
-  navText: {
-    color: '#b3b3b3',
-    fontSize: 14,
+  navLabel: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 4,
   },
-  navTextActive: {
+  navLabelActive: {
     color: '#1DB954',
     fontWeight: 'bold',
   },

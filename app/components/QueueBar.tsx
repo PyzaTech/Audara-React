@@ -1,7 +1,13 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer } from '../context/AudioPlayerContext';
+import { useRouter } from 'expo-router';
+import Slider from '@react-native-community/slider';
+import { Animated, Easing } from 'react-native';
+import React, { useState, useRef } from 'react';
+import VolumeControl from './volume_control';
+
+
 
 function formatMillis(millis: number) {
   const totalSeconds = Math.floor(millis / 1000);
@@ -22,7 +28,11 @@ export default function QueueBar() {
     progress,
     currentPositionMillis,
     durationMillis,
+    volume,
+    setVolume,
   } = useAudioPlayer();
+
+  const router = useRouter();
 
   if (!queue.length || !currentSong?.title) return null;
 
@@ -34,25 +44,33 @@ export default function QueueBar() {
     }
   };
 
+  const handleBarPress = () => {
+    router.push('/song_detail');
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.inner}>
-        {currentSong.image ? (
-          <Image source={{ uri: currentSong.image }} style={styles.albumArt} />
-        ) : (
-          <Ionicons name="musical-notes" size={48} color="white" style={{ marginRight: 12 }} />
-        )}
+        <TouchableOpacity style={styles.songSection} activeOpacity={0.7} onPress={handleBarPress}>
+          {currentSong.image ? (
+            <Image source={{ uri: currentSong.image }} style={styles.albumArt} />
+          ) : (
+            <Ionicons name="musical-notes" size={48} color="white" style={{ marginRight: 12 }} />
+          )}
 
-        <View style={styles.songInfo}>
-          <Text style={styles.title} numberOfLines={1}>
-            {currentSong.title}
-          </Text>
-          <Text style={styles.artist} numberOfLines={1}>
-            {currentSong.artist}
-          </Text>
-        </View>
+          <View style={styles.songInfo}>
+            <Text style={styles.title} numberOfLines={1}>
+              {currentSong.title}
+            </Text>
+            <Text style={styles.artist} numberOfLines={1}>
+              {currentSong.artist}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.controls}>
+          {/* <VolumeControl volume={volume} setVolume={setVolume} /> */}
+
           <TouchableOpacity onPress={playPrevious} style={styles.controlButton}>
             <Ionicons name="play-skip-back" size={28} color="white" />
           </TouchableOpacity>
@@ -65,6 +83,8 @@ export default function QueueBar() {
             <Ionicons name="play-skip-forward" size={28} color="white" />
           </TouchableOpacity>
         </View>
+
+
       </View>
 
       {/* Time display */}
@@ -77,6 +97,7 @@ export default function QueueBar() {
       <View style={styles.progressBarBackground}>
         <View style={[styles.progressBarFill, { width: `${(progress ?? 0) * 100}%` }]} />
       </View>
+
     </View>
   );
 }
@@ -96,6 +117,13 @@ const styles = StyleSheet.create({
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  songSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
   },
   albumArt: {
     width: 48,
@@ -120,7 +148,6 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 12,
   },
   controlButton: {
     marginHorizontal: 8,

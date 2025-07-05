@@ -82,12 +82,16 @@ export default function SelectServer() {
       return;
     }
 
+    console.log('Original URL:', url);
     const normalizedUrl = normalizeWebSocketUrl(url);
+    console.log('Normalized URL:', normalizedUrl);
 
     if (!isValidWebSocketUrl(normalizedUrl)) {
-      Alert.alert('Invalid URL', 'Please enter a valid WebSocket URL starting with ws:// or wss://');
+      Alert.alert('Invalid URL', `Invalid WebSocket URL: ${normalizedUrl}`);
+      setLoading(false);
       return;
     }
+
 
     setLoading(true);
 

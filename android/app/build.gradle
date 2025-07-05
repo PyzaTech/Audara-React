@@ -2,6 +2,13 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+project.ext.react = [
+    enableHermes: true, // Or false if you don't use Hermes
+    bundleInDebug: true, // 👈 This forces the JS bundle into the debug APK
+    bundleInRelease: true
+]
+
+
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
 /**

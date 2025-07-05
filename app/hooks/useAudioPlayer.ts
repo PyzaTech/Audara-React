@@ -22,6 +22,8 @@ export default function usePlayQueue() {
   const [durationMillis, setDurationMillis] = useState(0);
   const sound = useRef<Audio.Sound | null>(null);
   const { ws, sessionKey, sendEncryptedMessage, addMessageListener, removeMessageListener } = useWebSocket();
+  const [volume, setVolumeState] = useState(1.0);
+
 
   useEffect(() => {
     async function configureAudio() {
@@ -105,17 +107,26 @@ export default function usePlayQueue() {
         }
 
         if (status.didJustFinish) {
-            if (loopCurrent) {
-              await playSongAtIndex(index);
-            } else if (index < queue.length - 1) {
-              await playSongAtIndex(index + 1);
-            } else if (loopQueue && queue.length > 0) {
-              await playSongAtIndex(0);
-            } else {
-              await stopPlayback();
-              setCurrentIndex(-1);
-            }
+          if (loopCurrent) {
+            // Replay the current song
+            await playSongAtIndex(index);
+          } else if (index < queue.length - 1) {
+            // Play the next song in the queue
+            await playSongAtIndex(index + 1);
+          } else if (loopQueue && queue.length > 0) {
+            // Loop back to the start if loopQueue is enabled
+            await playSongAtIndex(0);
+          } else {
+            // No more songs, stop playback and clear queue
+            await stopPlayback();
+            setCurrentIndex(-1);
+            setQueue([]);
+            setProgress(0);
+            setCurrentPositionMillis(0);
+            setDurationMillis(0);
           }
+        }
+
         });
       } catch (error) {
         console.error('Error playing song:', error);
@@ -123,6 +134,14 @@ export default function usePlayQueue() {
     },
     [queue, loopCurrent, loopQueue]
   );
+
+  const setVolume = async (newVolume: number) => {
+  if (sound.current) {
+    await sound.current.setVolumeAsync(newVolume);
+  }
+  setVolumeState(newVolume);
+};
+
 
   const stopPlayback = async () => {
     if (sound.current) {
@@ -311,5 +330,7 @@ export default function usePlayQueue() {
     resumePlayback,
     currentPositionMillis,
     durationMillis,
+    volume,
+    setVolume,
   };
 }

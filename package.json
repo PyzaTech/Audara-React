@@ -1,7 +1,7 @@
 {
   "name": "audara",
-  "license": "0BSD",
-  "version": "1.0.0",
+  "license": "MIT",
+  "version": "beta-0.0.0.2",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/slider": "^4.5.7",
     "axios": "^1.10.0",
     "crypto-js": "^4.2.0",
     "expo": "~53.0.13",
@@ -21,14 +22,15 @@
     "expo-router": "^5.1.1",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
-    "react-native": "0.79.4",
-    "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.11.1",
     "react-dom": "19.0.0",
+    "react-native": "0.79.4",
+    "react-native-safe-area-context": "^5.4.0",
+    "react-native-screens": "~4.11.1",
     "react-native-web": "^0.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native-community/cli": "latest",
     "@types/react": "~19.0.10",
     "typescript": "~5.8.3"
   },

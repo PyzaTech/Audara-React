@@ -7,21 +7,22 @@ import { useRouter } from 'expo-router';
 import { useAudioPlayer } from './context/AudioPlayerContext';
 import QueueBar from './components/QueueBar';
 import { useWebSocket } from './context/WebSocketContext';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BottomNavBar from './components/navbar';
 
 export default function HomeScreen() {
   const [username, setUsername] = useState('User');
   const [profilePictureUrl, setProfilePictureUrl] = useState('');
   const [randomPicks, setRandomPicks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { streamSong, isPlaying, queue, currentSong, playNext, playPrevious, pausePlayback, resumePlayback } = useAudioPlayer();
 
+  const { streamSong, isPlaying, pausePlayback, resumePlayback } = useAudioPlayer();
   const { ws, isConnected } = useWebSocket();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!ws || !isConnected) {
-      // Delay navigation to let navigator mount
       const timer = setTimeout(() => {
         router.replace('/loading_screen');
       }, 0);
@@ -127,13 +128,13 @@ export default function HomeScreen() {
     </View>
   );
 
-  const togglePlayPause = async () => {
-    if (isPlaying) {
-      await pausePlayback();
-    } else {
-      await resumePlayback();
-    }
-  };
+  const [currentTab, setCurrentTab] = useState<'home' | 'search' | 'library'>('home');
+  
+    // This function is called when a tab is clicked
+    const handleTabChange = (tab: 'home' | 'search' | 'library') => {
+      setCurrentTab(tab);
+      // The router.replace is handled inside BottomNavBar onPress
+    };
 
   return (
     <View style={styles.safeArea}>
@@ -152,6 +153,7 @@ export default function HomeScreen() {
         data={randomPicks}
         keyExtractor={(item, index) => index.toString()}
         renderItem={renderSong}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 160 }} // Dynamic bottom padding
         ListHeaderComponent={
           <>
             <Text style={styles.sectionTitle}>Recently Played</Text>
@@ -168,31 +170,12 @@ export default function HomeScreen() {
         }
       />
 
-      <QueueBar>
+      <QueueBar />
 
-      </QueueBar>
-
-      <View style={styles.navbar}>
-        <NavButton iconName="home" label="Home" onPress={() => {}} />
-        <NavButton iconName="search" label="Search" onPress={() => router.replace('/search')} />
-        <NavButton iconName="library" label="Library" onPress={() => {}} />
-      </View>
+      <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} />
     </View>
   );
 }
-
-type NavButtonProps = {
-  iconName: React.ComponentProps<typeof Ionicons>['name'];
-  label: string;
-  onPress: () => void;
-};
-
-const NavButton = ({ iconName, label, onPress }: NavButtonProps) => (
-  <TouchableOpacity style={styles.navButton} onPress={onPress}>
-    <Ionicons name={iconName} size={24} color="white" />
-    <Text style={styles.navLabel}>{label}</Text>
-  </TouchableOpacity>
-);
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#121212' },
@@ -200,21 +183,6 @@ const styles = StyleSheet.create({
   headerText: { color: 'white', fontSize: 24, fontWeight: 'bold' },
   avatar: { width: 32, height: 32, borderRadius: 16 },
   sectionTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 },
-  navbar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    backgroundColor: '#282828',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderTopColor: '#333',
-    borderTopWidth: 1,
-  },
-  navButton: { alignItems: 'center' },
-  navLabel: { color: 'white', fontSize: 12, marginTop: 4 },
   queueBar: {
     flexDirection: 'row',
     alignItems: 'center',
