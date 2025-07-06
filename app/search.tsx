@@ -45,7 +45,7 @@ export default function SearchScreen() {
     try {
       let serverUrl = (await AsyncStorage.getItem('server_url')) || '';
         serverUrl = serverUrl.replace(/^wss?:\/\//, '');
-        const response = await axios.get(`http://${serverUrl}/api/deezer/search?q=${query}`);
+        const response = await axios.get(`http://${serverUrl}/api/deezer/search?q=${encodeURIComponent(q)}`);
       const results = (response.data.data ?? []).map((item: any) => ({
         title: item.title || 'Unknown Title',
         artist: item.artist?.name || 'Unknown Artist',
@@ -61,13 +61,14 @@ export default function SearchScreen() {
     }
   }, []);
 
-  const onChangeSearch = (text: string) => {
-    setQuery(text);
+  const onChangeSearch = async (text: string) => {
+    // console.log(text)
+    await setQuery(text);
     if (debounceTimer) clearTimeout(debounceTimer);
     setDebounceTimer(
       setTimeout(() => {
         searchSongs(text);
-      }, 300)
+      }, 500)
     );
   };
 

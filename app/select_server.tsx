@@ -92,11 +92,13 @@ export default function SelectServer() {
       return;
     }
 
-
     setLoading(true);
 
     try {
-      // Call the context connect method directly
+      // ✅ Save URL immediately
+      await AsyncStorage.setItem('server_url', normalizedUrl);
+
+      // ✅ Connect
       await connect(normalizedUrl);
     } catch (e) {
       console.error('Unexpected error during connect:', e);
@@ -105,22 +107,15 @@ export default function SelectServer() {
     }
   };
 
+
   // Navigate when connected
   useEffect(() => {
     if (isConnected) {
-      const normalizedUrl = normalizeWebSocketUrl(url);
-      AsyncStorage.setItem('server_url', normalizedUrl)
-        .then(() => {
-          setLoading(false);
-          router.replace('/start');
-        })
-        .catch((err) => {
-          setLoading(false);
-          console.error('Failed to save server URL:', err);
-          Alert.alert('Error', 'Failed to save server URL.');
-        });
+      setLoading(false);
+      router.replace('/start');
     }
   }, [isConnected]);
+
 
   return (
     <KeyboardAvoidingView

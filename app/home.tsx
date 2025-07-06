@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -16,10 +16,13 @@ export default function HomeScreen() {
   const [randomPicks, setRandomPicks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { streamSong, isPlaying, pausePlayback, resumePlayback } = useAudioPlayer();
-  const { ws, isConnected } = useWebSocket();
+  const { streamSong, isPlaying, pausePlayback, resumePlayback, stopPlayback } = useAudioPlayer();
+  const { ws, isConnected, disconnect } = useWebSocket();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // New state for dropdown visibility
+  const [menuVisible, setMenuVisible] = useState(false);
 
   useEffect(() => {
     if (!ws || !isConnected) {
@@ -65,17 +68,14 @@ export default function HomeScreen() {
   }, []);
 
   const handleLogout = async () => {
+    console.log("Logging out...")
     await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password']);
+    disconnect();
     router.replace('/select_server');
   };
 
-  const handleMenuPress = () => {
-    Alert.alert('Options', 'Select an option', [
-      { text: 'View Profile', onPress: () => console.log('View Profile tapped') },
-      { text: 'Settings', onPress: () => console.log('Settings tapped') },
-      { text: 'Logout', onPress: handleLogout },
-    ]);
-  };
+  // Toggle menu visibility on avatar press
+  const toggleMenu = () => setMenuVisible((prev) => !prev);
 
   const renderSong = ({ item }: { item: Song }) => (
     <TouchableOpacity
@@ -129,24 +129,62 @@ export default function HomeScreen() {
   );
 
   const [currentTab, setCurrentTab] = useState<'home' | 'search' | 'library'>('home');
-  
-    // This function is called when a tab is clicked
-    const handleTabChange = (tab: 'home' | 'search' | 'library') => {
-      setCurrentTab(tab);
-      // The router.replace is handled inside BottomNavBar onPress
-    };
+
+  // This function is called when a tab is clicked
+  const handleTabChange = (tab: 'home' | 'search' | 'library') => {
+    setCurrentTab(tab);
+    // The router.replace is handled inside BottomNavBar onPress
+  };
 
   return (
     <View style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.headerText}>Good Evening {username}</Text>
-        <TouchableOpacity onPress={handleMenuPress}>
-          {profilePictureUrl ? (
-            <Image source={{ uri: profilePictureUrl }} style={styles.avatar} />
-          ) : (
-            <Ionicons name="person-circle" size={32} color="white" />
+        <View>
+          <TouchableOpacity onPress={toggleMenu}>
+            {profilePictureUrl ? (
+              <Image source={{ uri: profilePictureUrl }} style={styles.avatar} />
+            ) : (
+              <Ionicons name="person-circle" size={32} color="white" />
+            )}
+          </TouchableOpacity>
+
+          {menuVisible && (
+            <View style={styles.dropdownMenu}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  console.log('View Profile tapped');
+                  // add navigation or other actions here
+                }}
+              >
+                <Text style={styles.menuText}>View Profile</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  console.log('Settings tapped');
+                  // add navigation or other actions here
+                }}
+              >
+                <Text style={styles.menuText}>Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  handleLogout();
+                }}
+              >
+                <Text style={[styles.menuText, { color: 'red' }]}>Logout</Text>
+              </TouchableOpacity>
+            </View>
           )}
-        </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -182,21 +220,31 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
   headerText: { color: 'white', fontSize: 24, fontWeight: 'bold' },
   avatar: { width: 32, height: 32, borderRadius: 16 },
-  sectionTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 },
-  queueBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    padding: 10,
-    borderTopColor: '#555',
-    borderTopWidth: 1,
+  dropdownMenu: {
+    position: 'absolute',
+    top: 50, // adjust as needed for placement
+    right: 0,
+    backgroundColor: '#222',
+    borderRadius: 8,
+    paddingVertical: 8,
+    width: 160,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+    zIndex: 1000,
   },
-  queueButton: { marginRight: 15 },
-  queueInfo: { flex: 1 },
-  queueTitle: { color: 'white', fontWeight: 'bold', fontSize: 14 },
-  queueArtist: { color: 'gray', fontSize: 12 },
+  menuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuText: {
+    color: 'white',
+    fontSize: 16,
+  },
+  sectionTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 20 },
 });
-
+  
 type Song = {
   title: string;
   artist: string;

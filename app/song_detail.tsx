@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer } from './context/AudioPlayerContext';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
+import Modal from 'react-native-modal';
 
 export default function SongDetailScreen() {
   const router = useRouter();
@@ -17,7 +18,12 @@ export default function SongDetailScreen() {
     progress,
     currentPositionMillis,
     durationMillis,
+    queue,
+    currentIndex,
+    playSongAtIndex
   } = useAudioPlayer();
+
+  const [queueVisible, setQueueVisible] = useState(false);
 
   if (!currentSong) {
     return (
@@ -43,7 +49,7 @@ export default function SongDetailScreen() {
           <Ionicons name="arrow-back" size={28} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Now Playing</Text>
-        <View style={{ width: 28 }} /> {/* Spacer to center title */}
+        <View style={{ width: 28 }} />
       </View>
 
       {/* Album Art */}
@@ -66,7 +72,7 @@ export default function SongDetailScreen() {
         minimumTrackTintColor="#1DB954"
         maximumTrackTintColor="#b3b3b3"
         onSlidingComplete={(value) => {
-          // Handle seeking (implement seek logic in your player if needed)
+          // Seek logic if needed
         }}
       />
 
@@ -90,6 +96,43 @@ export default function SongDetailScreen() {
           <Ionicons name="play-skip-forward" size={48} color="white" />
         </TouchableOpacity>
       </View>
+
+      {/* View Queue Button */}
+      <TouchableOpacity style={styles.queueButton} onPress={() => setQueueVisible(true)}>
+        <Ionicons name="list" size={24} color="white" />
+        <Text style={styles.queueButtonText}>View Queue</Text>
+      </TouchableOpacity>
+
+      {/* Spotify-Style Queue Modal */}
+      <Modal
+        isVisible={queueVisible}
+        onBackdropPress={() => setQueueVisible(false)}
+        style={styles.modal}
+        swipeDirection="down"
+        onSwipeComplete={() => setQueueVisible(false)}
+        backdropOpacity={0.6}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.grabber} />
+          <Text style={styles.modalTitle}>Up Next</Text>
+          <FlatList
+            data={queue}
+            keyExtractor={(_, index) => index.toString()}
+            renderItem={({ item, index }) => (
+              <Pressable
+                style={[styles.queueItem, currentIndex === index && styles.currentItem]}
+                onPress={() => {
+                  playSongAtIndex(index);
+                  setQueueVisible(false);
+                }}
+              >
+                <Text style={styles.queueItemText}>{item.title} - {item.artist}</Text>
+                {currentIndex === index && <Ionicons name="volume-high" size={20} color="white" />}
+              </Pressable>
+            )}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -155,5 +198,61 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     width: '80%',
     marginTop: 40,
+  },
+  queueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#1DB954',
+    borderRadius: 20,
+  },
+  queueButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  modal: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+  modalContent: {
+    backgroundColor: '#282828',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    maxHeight: '60%',
+  },
+  grabber: {
+    width: 40,
+    height: 5,
+    backgroundColor: 'grey',
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  queueItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  currentItem: {
+    backgroundColor: '#1DB95450',
+  },
+  queueItemText: {
+    color: 'white',
+    fontSize: 16,
   },
 });

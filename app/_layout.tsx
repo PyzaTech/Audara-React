@@ -1,4 +1,4 @@
-import { Stack, Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WebSocketProvider } from './context/WebSocketContext';
 import { AudioPlayerProvider } from './context/AudioPlayerContext';
@@ -8,10 +8,7 @@ export default function Layout() {
     <SafeAreaProvider>
       <WebSocketProvider>
         <AudioPlayerProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            {/* Render nested screens */}
-            <Slot />
-          </Stack>
+          <Stack screenOptions={{ headerShown: false }} />
         </AudioPlayerProvider>
       </WebSocketProvider>
     </SafeAreaProvider>

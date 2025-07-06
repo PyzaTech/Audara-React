@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import CryptoJS from 'crypto-js';
 import * as ExpoCrypto from 'expo-crypto';
-import { Alert } from 'react-native';
-import { logger } from '../utils/logger'; // <-- Import the logger
+import { logger } from '../utils/_logger';
+import { useAudioPlayer } from '../context/AudioPlayerContext';
 
 type MessageListener = (data: any) => void;
 
@@ -170,8 +170,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       sessionKeyRef.current = null;
       stopHeartbeat();
 
-      Alert.alert('Connection Lost', 'Reconnecting...');
-
       setTimeout(() => {
         if (ws.current) {
           logger.log('Attempting to reconnect...');
@@ -211,13 +209,19 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const disconnect = () => {
+    console.log("Websocket disconnect logic called")
+    const { stopPlayback } = useAudioPlayer();
+
     if (ws.current) {
+      console.log("Websocket found, disconnecting")
       ws.current.close();
       ws.current = null;
       setSessionKey(null);
       sessionKeyRef.current = null;
     }
     stopHeartbeat();
+
+    stopPlayback();
   };
 
   useEffect(() => {

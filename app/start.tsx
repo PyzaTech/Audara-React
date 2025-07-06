@@ -2,9 +2,11 @@ import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useWebSocket } from './context/WebSocketContext';
 
 export default function StartScreen() {
   const router = useRouter();
+  const { disconnect } = useWebSocket();
 
   return (
     <View style={styles.container}>
@@ -34,10 +36,25 @@ export default function StartScreen() {
       </Text>
 
       {/* Change Server Button */}
-      <Pressable style={styles.changeServerButton} onPress={async () => {
-        await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password', 'server_url']);
-        router.push('/select_server')
-      }}>
+      <Pressable
+        style={styles.changeServerButton}
+        onPress={async () => {
+          try {
+            await disconnect();
+            await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password', 'server_url']);
+            console.log('Disconnected and cleared storage');
+
+            // Wait 300ms before navigating to ensure cleanup settles
+            setTimeout(() => {
+              router.replace('/select_server');
+            }, 300);
+          } catch (e) {
+            console.error('Error during disconnect and storage clear:', e);
+          }
+        }}
+
+
+      >
         <Text style={styles.changeServerText}>Change Server</Text>
       </Pressable>
     </View>

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Audio } from 'expo-av';
 import { useWebSocket } from '../context/WebSocketContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { logger } from '../utils/logger';
 
 type Song = {
   title: string;
@@ -34,7 +33,7 @@ export default function usePlayQueue() {
           playsInSilentModeIOS: true,
           shouldDuckAndroid: true,
           interruptionModeAndroid: 1,
-          staysActiveInBackground: false,
+          staysActiveInBackground: true,
           playThroughEarpieceAndroid: false,
         });
         console.log('Audio mode set successfully');

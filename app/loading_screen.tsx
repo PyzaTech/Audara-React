@@ -1,4 +1,3 @@
-// loading_screen.tsx
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,7 +16,7 @@ export default function LoadingScreen() {
       const username = await AsyncStorage.getItem('username');
       const password = await AsyncStorage.getItem('password');
 
-      if (!url || url.startsWith("")) {
+      if (!url || url === "") {
         router.replace('/select_server');
         return;
       }
@@ -40,38 +39,40 @@ export default function LoadingScreen() {
     // return () => disconnect();
   }, []);
 
-  // ✅ Watch for sessionKey and navigate when ready
-  useEffect(() => {
-    if (isConnected && sessionKey) {
-        useEffect(() => {
-    if (!sessionKey) return; // wait for sessionKey before listening
+// Effect to listen for login messages once sessionKey is ready
+useEffect(() => {
+  if (!sessionKey) return;
 
-    const handleLoginResponse = (data: any) => {
-      console.log('🔐 Login response received:', data);
+  const handleLoginResponse = (data: any) => {
+    console.log('🔐 Login response received:', data);
 
-      if (data.success) {
-        console.log('✅ Login successful:', data);
+    if (data.success) {
+      console.log('✅ Login successful:', data);
 
-        AsyncStorage.setItem('username', data.username);
-        AsyncStorage.setItem('password', data.password);
+      AsyncStorage.setItem('username', data.username);
+      AsyncStorage.setItem('password', data.password);
 
-        router.replace('/home');
-      } else {
-        console.log('❌ Login failed:', data.error);
-        Alert.alert('Login Failed', data.error || 'Unknown error');
-      }
-    };
-
-
-    addMessageListener('login', handleLoginResponse);
-
-    return () => {
-      removeMessageListener('login', handleLoginResponse);
-    };
-  }, [sessionKey, addMessageListener, removeMessageListener, router]);
-      autoLogin();
+      router.replace('/home');
+    } else {
+      console.log('❌ Login failed:', data.error);
+      Alert.alert('Login Failed', data.error || 'Unknown error');
     }
-  }, [isConnected, sessionKey]);
+  };
+
+  addMessageListener('login', handleLoginResponse);
+
+  return () => {
+    removeMessageListener('login', handleLoginResponse);
+  };
+}, [sessionKey, addMessageListener, removeMessageListener, router]);
+
+// Effect to auto login when connected and sessionKey ready
+useEffect(() => {
+  if (isConnected && sessionKey) {
+    autoLogin();
+  }
+}, [isConnected, sessionKey]);
+
 
   const autoLogin = async () => {
     const username = await AsyncStorage.getItem('username');
