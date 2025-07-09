@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, Pressable, StyleSheet, StatusBar, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -86,6 +86,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     marginBottom: 15,
     width: '80%',
+    maxWidth: Platform.OS === 'web' ? 300 : undefined, // Limit width on web
     alignItems: 'center',
   },
   primaryButtonText: {
@@ -102,6 +103,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     marginBottom: 15,
     width: '80%',
+    maxWidth: Platform.OS === 'web' ? 300 : undefined, // Limit width on web
     alignItems: 'center',
   },
   secondaryButtonText: {
@@ -115,6 +117,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 30,
     width: '80%',
+    maxWidth: Platform.OS === 'web' ? 300 : undefined, // Limit width on web
     alignItems: 'center',
   },
   googleButtonContent: {

@@ -28,7 +28,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isConnected, setIsConnected] = useState(false);
   const [sessionKey, setSessionKey] = useState<CryptoJS.lib.WordArray | null>(null);
   const sessionKeyRef = useRef<CryptoJS.lib.WordArray | null>(null);
-  const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatTimer = useRef<number | null>(null);
 
   const messageListenersByAction = useRef<Map<string, MessageListener[]>>(new Map());
 
@@ -210,7 +210,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const disconnect = () => {
     console.log("Websocket disconnect logic called")
-    const { stopPlayback } = useAudioPlayer();
 
     if (ws.current) {
       console.log("Websocket found, disconnecting")
@@ -221,7 +220,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     stopHeartbeat();
 
-    stopPlayback();
   };
 
   useEffect(() => {
@@ -299,3 +297,4 @@ async function encryptMessage(plainText: string, sessionKey: CryptoJS.lib.WordAr
     data: encrypted.toString(),
   });
 }
+

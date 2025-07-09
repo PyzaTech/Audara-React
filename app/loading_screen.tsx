@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useWebSocket } from './context/WebSocketContext';
+import { logger } from './utils/_logger';
 
 export default function LoadingScreen() {
   const router = useRouter();
@@ -56,6 +57,7 @@ useEffect(() => {
     } else {
       console.log('❌ Login failed:', data.error);
       Alert.alert('Login Failed', data.error || 'Unknown error');
+      router.replace('/start');
     }
   };
 
@@ -82,6 +84,8 @@ useEffect(() => {
       router.replace('/start');
       return;
     }
+
+    logger.log(`🔐 Auto logging in with username: ${username} password: ${password}`);
 
     sendEncryptedMessage({
       action: 'login',

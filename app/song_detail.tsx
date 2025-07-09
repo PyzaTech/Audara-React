@@ -20,7 +20,8 @@ export default function SongDetailScreen() {
     durationMillis,
     queue,
     currentIndex,
-    playSongAtIndex
+    playSongAtIndex,
+    seekToMillis,
   } = useAudioPlayer();
 
   const [queueVisible, setQueueVisible] = useState(false);
@@ -72,7 +73,13 @@ export default function SongDetailScreen() {
         minimumTrackTintColor="#1DB954"
         maximumTrackTintColor="#b3b3b3"
         onSlidingComplete={(value) => {
-          // Seek logic if needed
+          if (durationMillis && isFinite(durationMillis)) {
+            const newPosition = Math.floor(value * durationMillis);
+            console.log('Seeking to:', newPosition);
+            seekToMillis(newPosition);
+          } else {
+            console.warn('Cannot seek: duration is unknown');
+          }
         }}
       />
 

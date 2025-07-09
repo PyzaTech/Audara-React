@@ -179,6 +179,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 25,
+    alignItems: 'center', // Center the input on web
   },
   input: {
     backgroundColor: '#282828',
@@ -187,12 +188,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontSize: 18,
     color: 'white',
+    width: '100%',
+    maxWidth: Platform.OS === 'web' ? 400 : undefined,
+    alignSelf: 'center',
   },
   button: {
     backgroundColor: '#1DB954',
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
+    width: '100%',
+    maxWidth: Platform.OS === 'web' ? 250 : undefined,
+    alignSelf: 'center',
   },
   buttonPressed: {
     backgroundColor: '#17a94d',

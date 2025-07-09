@@ -8,6 +8,7 @@ type Song = {
   artist: string;
   image: string;
   url: string;
+  duration: number;
 };
 
 export default function usePlayQueue() {
@@ -91,16 +92,14 @@ export default function usePlayQueue() {
             setCurrentPositionMillis(status.positionMillis);
         }
 
-        if (typeof status.durationMillis === 'number' && status.durationMillis > 0) {
-            setDurationMillis(status.durationMillis);
-        }
+        setDurationMillis(song.duration);
 
         if (
             typeof status.positionMillis === 'number' &&
             typeof status.durationMillis === 'number' &&
             status.durationMillis > 0
         ) {
-            setProgress(status.positionMillis / status.durationMillis);
+            setProgress(status.positionMillis / song.duration);
         } else {
             setProgress(0);
         }
@@ -232,6 +231,33 @@ export default function usePlayQueue() {
     }
   };
 
+  const seekToMillis = async (millis: number) => {
+    if (sound.current && millis >= 0) {
+      try {
+        const status = await sound.current.getStatusAsync();
+        console.log('Current sound status:', status);
+        console.log('Seeking to:', millis, 'Current status:', status);
+
+        // Type guard: Check if the status indicates a loaded sound
+        if (status.isLoaded) {
+          // Now TypeScript knows 'status' is of type AVPlaybackStatusSuccess
+          // and 'durationMillis' will be accessible.
+          if (status.durationMillis != null && millis <= status.durationMillis) {
+            await sound.current.setPositionAsync(millis);
+            console.log('Seek successful to:', millis);
+          } else {
+            console.warn('Seek position is out of bounds or durationMillis is null/undefined.');
+          }
+        } else {
+          console.warn('Sound is not loaded, cannot seek.');
+        }
+      } catch (error) {
+        console.error('Failed to seek:', error);
+      }
+    }
+  };
+
+
   // Listen for "stream-song" responses from server and play immediately
   useEffect(() => {
     if (!ws || !sessionKey) return;
@@ -252,6 +278,7 @@ export default function usePlayQueue() {
           artist: data.artist ?? '',
           image: data.image ?? '',
           url: songUrl,
+          duration: data.duration,
         };
 
         console.log('Adding song to queue:', songToPlay);
@@ -287,6 +314,7 @@ export default function usePlayQueue() {
       title: song.title,
       artist: song.artist,
       image: song.image,
+
     };
 
     console.log('Sending stream request:', songMetaData);
@@ -331,5 +359,6 @@ export default function usePlayQueue() {
     durationMillis,
     volume,
     setVolume,
+    seekToMillis,
   };
 }

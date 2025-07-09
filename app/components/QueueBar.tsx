@@ -36,13 +36,17 @@ export default function QueueBar() {
 
   if (!queue.length || !currentSong?.title) return null;
 
-  const togglePlayPause = async () => {
-    if (isPlaying) {
-      pausePlayback();
-    } else {
-      resumePlayback();
-    }
-  };
+const togglePlayPause = async () => {
+  console.log('Toggle play/pause. isPlaying:', isPlaying);
+  if (isPlaying) {
+    console.log('Pausing playback');
+    await pausePlayback();
+  } else {
+    console.log('Resuming playback');
+    await resumePlayback();
+  }
+};
+
 
   const handleBarPress = () => {
     router.push('/song_detail');

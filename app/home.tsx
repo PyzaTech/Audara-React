@@ -17,7 +17,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
 
   const { streamSong, isPlaying, pausePlayback, resumePlayback, stopPlayback } = useAudioPlayer();
-  const { ws, isConnected, disconnect } = useWebSocket();
+  const { ws, isConnected } = useWebSocket();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -70,7 +70,7 @@ export default function HomeScreen() {
   const handleLogout = async () => {
     console.log("Logging out...")
     await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password']);
-    disconnect();
+    stopPlayback();
     router.replace('/select_server');
   };
 
@@ -136,83 +136,80 @@ export default function HomeScreen() {
     // The router.replace is handled inside BottomNavBar onPress
   };
 
-  return (
-    <View style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Good Evening {username}</Text>
-        <View>
-          <TouchableOpacity onPress={toggleMenu}>
-            {profilePictureUrl ? (
-              <Image source={{ uri: profilePictureUrl }} style={styles.avatar} />
-            ) : (
-              <Ionicons name="person-circle" size={32} color="white" />
-            )}
-          </TouchableOpacity>
-
-          {menuVisible && (
-            <View style={styles.dropdownMenu}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuVisible(false);
-                  console.log('View Profile tapped');
-                  // add navigation or other actions here
-                }}
-              >
-                <Text style={styles.menuText}>View Profile</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuVisible(false);
-                  console.log('Settings tapped');
-                  // add navigation or other actions here
-                }}
-              >
-                <Text style={styles.menuText}>Settings</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  setMenuVisible(false);
-                  handleLogout();
-                }}
-              >
-                <Text style={[styles.menuText, { color: 'red' }]}>Logout</Text>
-              </TouchableOpacity>
-            </View>
+return (
+  <View style={styles.safeArea}>
+    <View style={styles.header}>
+      <Text style={styles.headerText}>Good Evening {username}</Text>
+      <View>
+        <TouchableOpacity onPress={toggleMenu}>
+          {profilePictureUrl ? (
+            <Image source={{ uri: profilePictureUrl }} style={styles.avatar} />
+          ) : (
+            <Ionicons name="person-circle" size={32} color="white" />
           )}
-        </View>
+        </TouchableOpacity>
       </View>
-
-      <FlatList
-        data={randomPicks}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderSong}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 160 }} // Dynamic bottom padding
-        ListHeaderComponent={
-          <>
-            <Text style={styles.sectionTitle}>Recently Played</Text>
-            <FlatList
-              data={recentlyPlayed}
-              keyExtractor={(item) => item.id}
-              renderItem={renderRecentlyPlayed}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 20 }}
-            />
-            <Text style={styles.sectionTitle}>Random Picks</Text>
-          </>
-        }
-      />
-
-      <QueueBar />
-
-      <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} />
     </View>
-  );
+
+    <FlatList
+      data={randomPicks}
+      keyExtractor={(item, index) => index.toString()}
+      renderItem={renderSong}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 160 }}
+      ListHeaderComponent={
+        <>
+          <Text style={styles.sectionTitle}>Recently Played</Text>
+          <FlatList
+            data={recentlyPlayed}
+            keyExtractor={(item) => item.id}
+            renderItem={renderRecentlyPlayed}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 20 }}
+          />
+          <Text style={styles.sectionTitle}>Random Picks</Text>
+        </>
+      }
+    />
+
+    {/* Render dropdown last so it's on top */}
+    {menuVisible && (
+      <View style={styles.dropdownMenu}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            setMenuVisible(false);
+            console.log('View Profile tapped');
+          }}
+        >
+          <Text style={styles.menuText}>View Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            setMenuVisible(false);
+            console.log('Settings tapped');
+          }}
+        >
+          <Text style={styles.menuText}>Settings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={async () => {
+            console.log('Logout tapped');
+            setMenuVisible(false);
+            await handleLogout();
+          }}
+        >
+          <Text style={[styles.menuText, { color: 'red' }]}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+
+    <QueueBar />
+    <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} />
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -222,7 +219,7 @@ const styles = StyleSheet.create({
   avatar: { width: 32, height: 32, borderRadius: 16 },
   dropdownMenu: {
     position: 'absolute',
-    top: 50, // adjust as needed for placement
+    top: 50,
     right: 0,
     backgroundColor: '#222',
     borderRadius: 8,
@@ -231,8 +228,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    elevation: 5,
-    zIndex: 1000,
+    elevation: 20, // increase this
+    zIndex: 9999,  // increase this
   },
   menuItem: {
     paddingVertical: 12,
@@ -246,10 +243,12 @@ const styles = StyleSheet.create({
 });
   
 type Song = {
+  id: string;
   title: string;
   artist: string;
   image: string;
   url: string;
+  duration: number;
 };
 
 type RecentlyPlayedItem = {
