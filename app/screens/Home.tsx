@@ -4,11 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import { useAudioPlayer } from './context/AudioPlayerContext';
-import QueueBar from './components/QueueBar';
-import { useWebSocket } from './context/WebSocketContext';
+import useAudioPlayer from '../hooks/useAudioPlayer';
+import QueueBar from '../components/QueueBar';
+import { useWebSocket } from '../context/WebSocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BottomNavBar from './components/navbar';
+import BottomNavBar from '../components/navbar';
 
 export default function HomeScreen() {
   const [username, setUsername] = useState('User');
@@ -27,7 +27,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!ws || !isConnected) {
       const timer = setTimeout(() => {
-        router.replace('/loading_screen');
+        router.replace('/screens/LoadingScreen');
       }, 0);
 
       return () => clearTimeout(timer);
@@ -71,7 +71,7 @@ export default function HomeScreen() {
     console.log("Logging out...")
     await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password']);
     stopPlayback();
-    router.replace('/select_server');
+    router.replace('/screens/SelectServer');
   };
 
   // Toggle menu visibility on avatar press
@@ -128,10 +128,10 @@ export default function HomeScreen() {
     </View>
   );
 
-  const [currentTab, setCurrentTab] = useState<'home' | 'search' | 'library'>('home');
+  const [currentTab, setCurrentTab] = useState<'Home' | 'Search' | 'Library'>('Home');
 
   // This function is called when a tab is clicked
-  const handleTabChange = (tab: 'home' | 'search' | 'library') => {
+  const handleTabChange = (tab: 'Home' | 'Search' | 'Library') => {
     setCurrentTab(tab);
     // The router.replace is handled inside BottomNavBar onPress
   };

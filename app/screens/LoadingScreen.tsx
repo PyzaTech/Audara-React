@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useWebSocket } from './context/WebSocketContext';
-import { logger } from './utils/_logger';
+import { useWebSocket } from '../context/WebSocketContext';
+import { logger } from '../utils/_logger';
 
 export default function LoadingScreen() {
   const router = useRouter();
@@ -18,14 +18,14 @@ export default function LoadingScreen() {
       const password = await AsyncStorage.getItem('password');
 
       if (!url || url === "") {
-        router.replace('/select_server');
+        router.replace('/screens/SelectServer');
         return;
       }
 
       const isValid = await testConnection(url);
 
       if (!isValid) {
-        router.replace('/select_server');
+        router.replace('/screens/SelectServer');
         return;
       }
 
@@ -53,11 +53,11 @@ useEffect(() => {
       AsyncStorage.setItem('username', data.username);
       AsyncStorage.setItem('password', data.password);
 
-      router.replace('/home');
+      router.replace('/screens/Home');
     } else {
       console.log('❌ Login failed:', data.error);
       Alert.alert('Login Failed', data.error || 'Unknown error');
-      router.replace('/start');
+      router.replace('/screens/Start');
     }
   };
 
@@ -81,7 +81,7 @@ useEffect(() => {
     const password = await AsyncStorage.getItem('password');
 
     if (!username || !password) {
-      router.replace('/start');
+      router.replace('/screens/Start');
       return;
     }
 
@@ -108,7 +108,7 @@ const handleLoginResponse = (data: any) => {
         AsyncStorage.setItem('username', data.username);
         AsyncStorage.setItem('password', data.password);
 
-        router.replace('/home');
+        router.replace('/screens/Home');
       } else {
         console.log('❌ Login failed:', data.error);
         Alert.alert('Login Failed', data.error || 'Unknown error');

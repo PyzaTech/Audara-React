@@ -2,7 +2,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, StatusBar, Alert } from '
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useWebSocket } from './context/WebSocketContext';
+import { useWebSocket } from '../context/WebSocketContext';
 import { Platform } from 'react-native';
 
 export default function LoginScreen() {
@@ -36,7 +36,7 @@ export default function LoginScreen() {
 
         setTimeout(() => {
           setLoading(false);
-          router.replace('/home');
+          router.replace('/screens/Home');
         }, 300);
       } else {
         console.log('❌ Login failed:', data.error);

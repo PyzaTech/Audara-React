@@ -2,7 +2,7 @@ import { View, Text, Pressable, StyleSheet, StatusBar, Platform } from 'react-na
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useWebSocket } from './context/WebSocketContext';
+import { useWebSocket } from '../context/WebSocketContext';
 
 export default function StartScreen() {
   const router = useRouter();
@@ -15,11 +15,11 @@ export default function StartScreen() {
       <Text style={styles.logo}>Audara</Text>
 
       <View style={styles.buttonGroup}>
-        <Pressable style={styles.primaryButton} onPress={() => router.push('/signup')}>
+        <Pressable style={styles.primaryButton} onPress={() => router.push('/screens/SignUp')}>
           <Text style={styles.primaryButtonText}>Sign Up Free</Text>
         </Pressable>
 
-        <Pressable style={styles.secondaryButton} onPress={() => router.push('/login')}>
+        <Pressable style={styles.secondaryButton} onPress={() => router.push('/screens/Login')}>
           <Text style={styles.secondaryButtonText}>Log In</Text>
         </Pressable>
 
@@ -46,7 +46,7 @@ export default function StartScreen() {
 
             // Wait 300ms before navigating to ensure cleanup settles
             setTimeout(() => {
-              router.replace('/select_server');
+              router.replace('/screens/SelectServer');
             }, 300);
           } catch (e) {
             console.error('Error during disconnect and storage clear:', e);

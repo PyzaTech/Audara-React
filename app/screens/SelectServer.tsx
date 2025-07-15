@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, TextInput, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useWebSocket } from './context/WebSocketContext';
+import { useWebSocket } from '../context/WebSocketContext';
 
 export default function SelectServer() {
   const [url, setUrl] = useState('');
@@ -112,7 +112,7 @@ export default function SelectServer() {
   useEffect(() => {
     if (isConnected) {
       setLoading(false);
-      router.replace('/start');
+      router.replace('/screens/Start');
     }
   }, [isConnected]);
 

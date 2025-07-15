@@ -5,16 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type BottomNavBarProps = {
-  currentTab: 'home' | 'search' | 'library';
-  onTabChange: (tab: 'home' | 'search' | 'library') => void;
+  currentTab: 'Home' | 'Search' | 'Library';
+  onTabChange: (tab: 'Home' | 'Search' | 'Library') => void;
 };
 
 export default function BottomNavBar({ currentTab, onTabChange }: BottomNavBarProps) {
   const insets = useSafeAreaInsets();
 
-  const handlePress = (tab: 'home' | 'search' | 'library') => {
+  const handlePress = (tab: 'Home' | 'Search' | 'Library') => {
     onTabChange(tab);
-    router.replace(tab); // replace with tab route
+    router.replace(`screens/${tab}`); // replace with tab route
   };
 
   return (
@@ -22,20 +22,20 @@ export default function BottomNavBar({ currentTab, onTabChange }: BottomNavBarPr
       <NavButton
         iconName="home"
         label="Home"
-        onPress={() => handlePress('home')}
-        active={currentTab === 'home'}
+        onPress={() => handlePress('Home')}
+        active={currentTab === 'Home'}
       />
       <NavButton
         iconName="search"
         label="Search"
-        onPress={() => handlePress('search')}
-        active={currentTab === 'search'}
+        onPress={() => handlePress('Search')}
+        active={currentTab === 'Search'}
       />
       <NavButton
         iconName="library"
         label="Library"
-        onPress={() => handlePress('library')}
-        active={currentTab === 'library'}
+        onPress={() => handlePress('Library')}
+        active={currentTab === 'Library'}
       />
     </View>
   );

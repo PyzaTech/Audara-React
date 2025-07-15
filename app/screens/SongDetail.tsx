@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAudioPlayer } from './context/AudioPlayerContext';
+import useAudioPlayer from '../hooks/useAudioPlayer';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import Modal from 'react-native-modal';

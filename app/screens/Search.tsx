@@ -12,12 +12,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import { useAudioPlayer } from './context/AudioPlayerContext';
-import QueueBar from './components/QueueBar';
+import useAudioPlayer from '../hooks/useAudioPlayer';
+import QueueBar from '../components/QueueBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Navbar from './components/navbar';
-import BottomNavBar from './components/navbar';
+import BottomNavBar from '../components/navbar';
 
 type Song = {
   title: string;
@@ -65,11 +64,10 @@ export default function SearchScreen() {
     // console.log(text)
     await setQuery(text);
     if (debounceTimer) clearTimeout(debounceTimer);
-    setDebounceTimer(
-      setTimeout(() => {
-        searchSongs(text);
-      }, 500)
-    );
+    const timer = setTimeout(() => {
+      searchSongs(text);
+    }, 500);
+    setDebounceTimer(timer as unknown as NodeJS.Timeout);
   };
 
   const renderItem = ({ item }: { item: Song }) => (
@@ -77,7 +75,10 @@ export default function SearchScreen() {
       style={styles.songItem}
       onPress={async () => {
         console.log(`Selected song ${item.title} by ${item.artist}`);
-        await streamSong(item);
+        streamSong({
+          ...item,
+          duration: (item as any).duration ?? 0,
+        });
       }}
     >
       {item.image ? (
@@ -93,10 +94,10 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
-const [currentTab, setCurrentTab] = useState<'home' | 'search' | 'library'>('search');
+const [currentTab, setCurrentTab] = useState<'Home' | 'Search' | 'Library'>('Search');
 
   // This function is called when a tab is clicked
-  const handleTabChange = (tab: 'home' | 'search' | 'library') => {
+  const handleTabChange = (tab: 'Home' | 'Search' | 'Library') => {
     setCurrentTab(tab);
     // The router.replace is handled inside BottomNavBar onPress
   };
