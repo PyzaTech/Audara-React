@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import CryptoJS from 'crypto-js';
 import * as ExpoCrypto from 'expo-crypto';
 import { logger } from '../utils/_logger';
-import { useAudioPlayer } from '../context/AudioPlayerContext';
 
 type MessageListener = (data: any) => void;
 

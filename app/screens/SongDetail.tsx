@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+  StatusBar,
+  Animated,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import useAudioPlayer from '../hooks/useAudioPlayer';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
-import Modal from 'react-native-modal';
+import useAudioPlayer from '../hooks/useAudioPlayer';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function SongDetailScreen() {
   const router = useRouter();
@@ -20,246 +31,493 @@ export default function SongDetailScreen() {
     durationMillis,
     queue,
     currentIndex,
+    setCurrentIndex,
     playSongAtIndex,
     seekToMillis,
+    volume,
+    setVolume,
+    startPlayback,
   } = useAudioPlayer();
 
-  const [queueVisible, setQueueVisible] = useState(false);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<'off' | 'one' | 'all'>('off');
 
-  if (!currentSong) {
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Animate in
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const togglePlayPause = async () => {
+    if (isPlaying) {
+      await pausePlayback();
+    } else {
+      await resumePlayback();
+    }
+  };
+
+  const toggleRepeat = () => {
+    setRepeatMode(prev => {
+      if (prev === 'off') return 'all';
+      if (prev === 'all') return 'one';
+      return 'off';
+    });
+  };
+
+  const formatTime = (millis: number) => {
+    if (!millis || isNaN(millis) || millis <= 0) return '0:00';
+    const totalSeconds = Math.floor(millis / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleSeek = (value: number) => {
+    if (durationMillis && isFinite(durationMillis)) {
+      const newPosition = Math.floor(value * durationMillis);
+      seekToMillis(newPosition);
+    }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+  };
+
+  // If no song is playing and no queue, show empty state
+  if (!currentSong && queue.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: 'white' }}>No song is currently playing.</Text>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-down" size={28} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Now Playing</Text>
+          <TouchableOpacity style={styles.menuButton}>
+            <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.emptyState}>
+          <Ionicons name="musical-notes" size={80} color="#666" />
+          <Text style={styles.emptyTitle}>No music playing</Text>
+          <Text style={styles.emptySubtitle}>Start playing a song to see it here</Text>
+        </View>
       </View>
     );
   }
 
-  const togglePlayPause = async () => {
-    if (isPlaying) {
-      pausePlayback();
-    } else {
-      resumePlayback();
-    }
-  };
+  // If there are songs in queue but no current song, show queue state
+  if (!currentSong && queue.length > 0) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-down" size={28} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Now Playing</Text>
+          <TouchableOpacity style={styles.menuButton}>
+            <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.emptyState}>
+          <Ionicons name="musical-notes" size={80} color="#666" />
+          <Text style={styles.emptyTitle}>Songs in queue</Text>
+          <Text style={styles.emptySubtitle}>
+            {queue.length} song{queue.length > 1 ? 's' : ''} ready to play
+          </Text>
+          <TouchableOpacity 
+            style={styles.startButton}
+            onPress={startPlayback}
+          >
+            <Text style={styles.startButtonText}>Start Playing</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Use current song or first song in queue as fallback
+  const displaySong = currentSong || (queue.length > 0 ? queue[0] : null);
 
   return (
     <View style={styles.container}>
-      {/* Header with Back Button */}
+      <StatusBar barStyle="light-content" />
+      
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={28} color="white" />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-down" size={28} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Now Playing</Text>
-        <View style={{ width: 28 }} />
-      </View>
-
-      {/* Album Art */}
-      {currentSong.image ? (
-        <Image source={{ uri: currentSong.image }} style={styles.albumArt} />
-      ) : (
-        <Ionicons name="musical-notes" size={250} color="white" style={{ marginBottom: 24 }} />
-      )}
-
-      {/* Song Info */}
-      <Text style={styles.title}>{currentSong.title}</Text>
-      <Text style={styles.artist}>{currentSong.artist}</Text>
-
-      {/* Slider */}
-      <Slider
-        style={{ width: '90%', marginTop: 24 }}
-        minimumValue={0}
-        maximumValue={1}
-        value={progress ?? 0}
-        minimumTrackTintColor="#1DB954"
-        maximumTrackTintColor="#b3b3b3"
-        onSlidingComplete={(value) => {
-          if (durationMillis && isFinite(durationMillis)) {
-            const newPosition = Math.floor(value * durationMillis);
-            console.log('Seeking to:', newPosition);
-            seekToMillis(newPosition);
-          } else {
-            console.warn('Cannot seek: duration is unknown');
-          }
-        }}
-      />
-
-      {/* Time Display */}
-      <View style={styles.timeRow}>
-        <Text style={styles.timeText}>{formatMillis(currentPositionMillis)}</Text>
-        <Text style={styles.timeText}>{formatMillis(durationMillis)}</Text>
-      </View>
-
-      {/* Controls */}
-      <View style={styles.controls}>
-        <TouchableOpacity onPress={playPrevious}>
-          <Ionicons name="play-skip-back" size={48} color="white" />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={togglePlayPause}>
-          <Ionicons name={isPlaying ? 'pause-circle' : 'play-circle'} size={64} color="white" />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={playNext}>
-          <Ionicons name="play-skip-forward" size={48} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      {/* View Queue Button */}
-      <TouchableOpacity style={styles.queueButton} onPress={() => setQueueVisible(true)}>
-        <Ionicons name="list" size={24} color="white" />
-        <Text style={styles.queueButtonText}>View Queue</Text>
-      </TouchableOpacity>
-
-      {/* Spotify-Style Queue Modal */}
-      <Modal
-        isVisible={queueVisible}
-        onBackdropPress={() => setQueueVisible(false)}
-        style={styles.modal}
-        swipeDirection="down"
-        onSwipeComplete={() => setQueueVisible(false)}
-        backdropOpacity={0.6}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.grabber} />
-          <Text style={styles.modalTitle}>Up Next</Text>
-          <FlatList
-            data={queue}
-            keyExtractor={(_, index) => index.toString()}
-            renderItem={({ item, index }) => (
-              <Pressable
-                style={[styles.queueItem, currentIndex === index && styles.currentItem]}
-                onPress={() => {
-                  playSongAtIndex(index);
-                  setQueueVisible(false);
-                }}
-              >
-                <Text style={styles.queueItemText}>{item.title} - {item.artist}</Text>
-                {currentIndex === index && <Ionicons name="volume-high" size={20} color="white" />}
-              </Pressable>
-            )}
-          />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {displaySong?.title || 'Now Playing'}
+          </Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {displaySong?.artist || 'Unknown Artist'}
+          </Text>
         </View>
-      </Modal>
+        <TouchableOpacity style={styles.menuButton}>
+          <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Animated.View 
+          style={[
+            styles.mainContent,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }
+          ]}
+        >
+          {/* Album Art */}
+          <View style={styles.albumArtContainer}>
+            {displaySong?.image ? (
+              <Image source={{ uri: displaySong.image }} style={styles.albumArt} />
+            ) : (
+              <View style={styles.albumArtPlaceholder}>
+                <Ionicons name="musical-notes" size={60} color="#666" />
+              </View>
+            )}
+          </View>
+
+          {/* Song Info */}
+          <View style={styles.songInfo}>
+            <Text style={styles.songTitle} numberOfLines={2}>
+              {displaySong?.title || 'Unknown Title'}
+            </Text>
+            <Text style={styles.songArtist} numberOfLines={1}>
+              {displaySong?.artist || 'Unknown Artist'}
+            </Text>
+          </View>
+
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <Slider
+              style={styles.progressSlider}
+              minimumValue={0}
+              maximumValue={1}
+              value={progress || 0}
+              onSlidingComplete={handleSeek}
+              minimumTrackTintColor="#1DB954"
+              maximumTrackTintColor="#535353"
+            />
+            <View style={styles.timeContainer}>
+              <Text style={styles.timeText}>{formatTime(currentPositionMillis)}</Text>
+              <Text style={styles.timeText}>{formatTime(durationMillis)}</Text>
+            </View>
+          </View>
+
+          {/* Main Controls */}
+          <View style={styles.mainControls}>
+            <TouchableOpacity style={styles.controlButton}>
+              <Ionicons name="shuffle" size={24} color={isShuffled ? "#1DB954" : "white"} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={playPrevious} style={styles.controlButton}>
+              <Ionicons name="play-skip-back" size={32} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={togglePlayPause} style={styles.playPauseButton}>
+              <Ionicons 
+                name={isPlaying ? 'pause' : 'play'} 
+                size={40} 
+                color="black" 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={playNext} style={styles.controlButton}>
+              <Ionicons name="play-skip-forward" size={32} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={toggleRepeat} style={styles.controlButton}>
+              <Ionicons 
+                name={repeatMode === 'one' ? 'repeat' : 'repeat'} 
+                size={24} 
+                color={repeatMode !== 'off' ? "#1DB954" : "white"} 
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Secondary Controls */}
+          <View style={styles.secondaryControls}>
+            <TouchableOpacity style={styles.secondaryButton}>
+              <Ionicons name="heart-outline" size={24} color={isLiked ? "#1DB954" : "white"} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.secondaryButton}>
+              <Ionicons name="download-outline" size={24} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.secondaryButton}>
+              <Ionicons name="share-outline" size={24} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={() => setShowVolumeSlider(!showVolumeSlider)}
+            >
+              <Ionicons name="volume-high" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Volume Slider */}
+          {showVolumeSlider && (
+            <View style={styles.volumeContainer}>
+              <Ionicons name="volume-low" size={16} color="#b3b3b3" />
+              <Slider
+                style={styles.volumeSlider}
+                minimumValue={0}
+                maximumValue={1}
+                value={volume}
+                onValueChange={handleVolumeChange}
+                minimumTrackTintColor="#1DB954"
+                maximumTrackTintColor="#535353"
+              />
+              <Ionicons name="volume-high" size={16} color="#b3b3b3" />
+            </View>
+          )}
+
+          {/* Queue Info */}
+          {queue.length > 1 && (
+            <View style={styles.queueInfo}>
+              <Text style={styles.queueText}>
+                {queue.length - (currentIndex + 1)} more in queue
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+      </ScrollView>
     </View>
   );
-}
-
-function formatMillis(millis: number) {
-  const totalSeconds = Math.floor(millis / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
-    alignItems: 'center',
-    paddingTop: 50,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '90%',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#282828',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   headerTitle: {
     color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    color: '#b3b3b3',
+    fontSize: 14,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  menuButton: {
+    padding: 8,
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  mainContent: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  albumArtContainer: {
+    marginTop: 40,
+    marginBottom: 40,
   },
   albumArt: {
-    width: 300,
-    height: 300,
+    width: screenWidth - 80,
+    height: screenWidth - 80,
     borderRadius: 8,
-    marginBottom: 24,
   },
-  title: {
+  albumArtPlaceholder: {
+    width: screenWidth - 80,
+    height: screenWidth - 80,
+    borderRadius: 8,
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  songInfo: {
+    alignItems: 'center',
+    marginBottom: 40,
+    width: '100%',
+  },
+  songTitle: {
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
+    lineHeight: 32,
   },
-  artist: {
+  songArtist: {
     color: '#b3b3b3',
     fontSize: 18,
     textAlign: 'center',
-    marginBottom: 24,
   },
-  timeRow: {
+  progressContainer: {
+    width: '100%',
+    marginBottom: 40,
+  },
+  progressSlider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderThumb: {
+    backgroundColor: '#1DB954',
+    width: 12,
+    height: 12,
+  },
+  sliderTrack: {
+    height: 4,
+    borderRadius: 2,
+  },
+  timeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '90%',
     marginTop: 8,
   },
   timeText: {
     color: '#b3b3b3',
     fontSize: 12,
   },
-  controls: {
+  mainControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 40,
+    paddingHorizontal: 20,
+  },
+  controlButton: {
+    padding: 12,
+  },
+  playPauseButton: {
+    backgroundColor: '#1DB954',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1DB954',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  secondaryControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    width: '80%',
-    marginTop: 40,
+    width: '100%',
+    marginBottom: 30,
   },
-  queueButton: {
+  secondaryButton: {
+    padding: 12,
+  },
+  volumeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 30,
-    paddingVertical: 10,
+    width: '100%',
+    marginBottom: 30,
     paddingHorizontal: 20,
+  },
+  volumeSlider: {
+    flex: 1,
+    marginHorizontal: 16,
+    height: 40,
+  },
+  volumeThumb: {
     backgroundColor: '#1DB954',
-    borderRadius: 20,
+    width: 12,
+    height: 12,
   },
-  queueButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
+  queueInfo: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#282828',
+    width: '100%',
   },
-  modal: {
-    justifyContent: 'flex-end',
-    margin: 0,
+  queueText: {
+    color: '#b3b3b3',
+    fontSize: 14,
   },
-  modalContent: {
-    backgroundColor: '#282828',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    maxHeight: '60%',
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
   },
-  grabber: {
-    width: 40,
-    height: 5,
-    backgroundColor: 'grey',
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
+  emptyTitle: {
     color: 'white',
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: '#b3b3b3',
+    fontSize: 16,
     textAlign: 'center',
   },
-  queueItem: {
+  startButton: {
+    backgroundColor: '#1DB954',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#444',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 20,
   },
-  currentItem: {
-    backgroundColor: '#1DB95450',
-  },
-  queueItemText: {
+  startButtonText: {
     color: 'white',
     fontSize: 16,
+    fontWeight: 'bold',
   },
 });

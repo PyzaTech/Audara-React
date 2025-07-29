@@ -18,7 +18,7 @@ export default function BottomNavBar({ currentTab, onTabChange }: BottomNavBarPr
   };
 
   return (
-    <View style={[styles.navbar, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.navbar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       <NavButton
         iconName="home"
         label="Home"
@@ -65,17 +65,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
     backgroundColor: '#282828',
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     borderTopColor: '#333',
     borderTopWidth: 1,
+    minHeight: 80,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   navButton: {
     alignItems: 'center',
     flex: 1,
+    paddingVertical: 8,
   },
   navLabel: {
     color: 'white',

@@ -1,12 +1,20 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Animated,
+  useWindowDimensions,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAudioPlayer } from '../context/AudioPlayerContext';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useAudioPlayer from '../hooks/useAudioPlayer';
 import Slider from '@react-native-community/slider';
-import { Animated, Easing } from 'react-native';
-import React, { useState, useRef } from 'react';
+import { Easing } from 'react-native';
 import VolumeControl from './volume_control';
-
 
 
 function formatMillis(millis: number) {
@@ -17,43 +25,98 @@ function formatMillis(millis: number) {
 }
 
 export default function QueueBar() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  
   const {
     currentSong,
     isPlaying,
     playNext,
     playPrevious,
-    queue,
-    resumePlayback,
     pausePlayback,
+    resumePlayback,
     progress,
     currentPositionMillis,
     durationMillis,
-    volume,
-    setVolume,
+    isCurrentSongDownloading,
+    debugAudioState,
+    queue,
   } = useAudioPlayer();
 
-  const router = useRouter();
+  // Calculate the bottom position based on navbar height and safe area
+  const navbarBaseHeight = 80; // Base height of the navbar
+  const navbarPaddingBottom = Math.max(insets.bottom, 12); // Same as navbar
+  const navbarTotalHeight = navbarBaseHeight + navbarPaddingBottom;
+  const queueBarBottom = navbarTotalHeight + 1; // +1 for the border
+
+  // Debug positioning changes
+  useEffect(() => {
+    console.log('QueueBar positioning updated:', {
+      insetsBottom: insets.bottom,
+      navbarPaddingBottom,
+      navbarTotalHeight,
+      queueBarBottom,
+      windowHeight
+    });
+  }, [insets.bottom, navbarPaddingBottom, navbarTotalHeight, queueBarBottom, windowHeight]);
+
+  const downloadAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isCurrentSongDownloading) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(downloadAnimation, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(downloadAnimation, {
+            toValue: 0,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      downloadAnimation.setValue(0);
+    }
+  }, [isCurrentSongDownloading, downloadAnimation]);
 
   if (!queue.length || !currentSong?.title) return null;
 
 const togglePlayPause = async () => {
-  console.log('Toggle play/pause. isPlaying:', isPlaying);
-  if (isPlaying) {
-    console.log('Pausing playback');
-    await pausePlayback();
-  } else {
-    console.log('Resuming playback');
-    await resumePlayback();
+  if (isCurrentSongDownloading) {
+    console.log('Cannot toggle play/pause while song is downloading');
+    return;
+  }
+
+  console.log('Toggle play/pause clicked. Current state - isPlaying:', isPlaying);
+  try {
+    if (isPlaying) {
+      console.log('Attempting to pause playback...');
+      await pausePlayback();
+      console.log('Pause operation completed');
+    } else {
+      console.log('Attempting to resume playback...');
+      await resumePlayback();
+      console.log('Resume operation completed');
+    }
+  } catch (error) {
+    console.error('Error toggling play/pause:', error);
   }
 };
 
 
   const handleBarPress = () => {
-    router.push('/song_detail');
+    router.push('/screens/SongDetail');
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: queueBarBottom }]}>
       <View style={styles.inner}>
         <TouchableOpacity style={styles.songSection} activeOpacity={0.7} onPress={handleBarPress}>
           {currentSong.image ? (
@@ -69,39 +132,58 @@ const togglePlayPause = async () => {
             <Text style={styles.artist} numberOfLines={1}>
               {currentSong.artist}
             </Text>
+            {isCurrentSongDownloading && (
+              <Animated.View style={[styles.downloadingContainer, { opacity: downloadAnimation }]}>
+                <Ionicons name="cloud-download" size={12} color="#1DB954" />
+                <Text style={styles.downloadingText}>Downloading...</Text>
+              </Animated.View>
+            )}
           </View>
         </TouchableOpacity>
 
         <View style={styles.controls}>
-          {/* <VolumeControl volume={volume} setVolume={setVolume} /> */}
-
           <TouchableOpacity onPress={playPrevious} style={styles.controlButton}>
             <Ionicons name="play-skip-back" size={28} color="white" />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={togglePlayPause} style={[styles.controlButton, styles.playPauseButton]}>
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={36} color="white" />
+          <TouchableOpacity 
+            onPress={togglePlayPause} 
+            style={[
+              styles.controlButton, 
+              styles.playPauseButton,
+              isCurrentSongDownloading && styles.disabledButton
+            ]}
+            disabled={isCurrentSongDownloading}
+          >
+            <Ionicons 
+              name={isPlaying ? 'pause' : 'play'} 
+              size={36} 
+              color={isCurrentSongDownloading ? '#666' : 'white'} 
+            />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={playNext} style={styles.controlButton}>
             <Ionicons name="play-skip-forward" size={28} color="white" />
           </TouchableOpacity>
+
+          <TouchableOpacity onPress={debugAudioState} style={styles.controlButton}>
+            <Ionicons name="bug" size={20} color="yellow" />
+          </TouchableOpacity>
         </View>
-
-
       </View>
 
-      {/* Time display */}
-      <View style={styles.progressTimeContainer}>
-        <Text style={styles.timeText}>{formatMillis(currentPositionMillis)}</Text>
-        <Text style={styles.timeText}>{formatMillis(durationMillis)}</Text>
-      </View>
+      {!isCurrentSongDownloading && (
+        <>
+          <View style={styles.progressTimeContainer}>
+            <Text style={styles.timeText}>{formatMillis(currentPositionMillis)}</Text>
+            <Text style={styles.timeText}>{formatMillis(durationMillis)}</Text>
+          </View>
 
-      {/* Progress bar */}
-      <View style={styles.progressBarBackground}>
-        <View style={[styles.progressBarFill, { width: `${(progress ?? 0) * 100}%` }]} />
-      </View>
-
+          <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarFill, { width: `${(progress ?? 0) * 100}%` }]} />
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -114,7 +196,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     position: 'absolute',
-    bottom: 80,
     left: 0,
     right: 0,
   },
@@ -180,5 +261,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#1DB954',
     borderRadius: 1,
     width: '0%',
+  },
+  downloadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  downloadingText: {
+    color: '#1DB954',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

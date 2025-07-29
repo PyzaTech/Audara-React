@@ -6,6 +6,7 @@ import axios from 'axios';
 import { useRouter } from 'expo-router';
 import useAudioPlayer from '../hooks/useAudioPlayer';
 import QueueBar from '../components/QueueBar';
+import DebugPanel from '../components/DebugPanel';
 import { useWebSocket } from '../context/WebSocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomNavBar from '../components/navbar';
@@ -207,6 +208,7 @@ return (
     )}
 
     <QueueBar />
+    <DebugPanel />
     <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} />
   </View>
 );
