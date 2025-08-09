@@ -46,7 +46,7 @@ export default function StartScreen() {
 
             // Wait 300ms before navigating to ensure cleanup settles
             setTimeout(() => {
-              router.replace('/screens/SelectServer');
+              router.push('/screens/SelectServer');
             }, 300);
           } catch (e) {
             console.error('Error during disconnect and storage clear:', e);

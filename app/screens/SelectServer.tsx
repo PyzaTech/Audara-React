@@ -112,7 +112,7 @@ export default function SelectServer() {
   useEffect(() => {
     if (isConnected) {
       setLoading(false);
-      router.replace('/screens/Start');
+      router.push('/screens/Start');
     }
   }, [isConnected]);
 

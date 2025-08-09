@@ -1,20 +1,34 @@
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type BottomNavBarProps = {
-  currentTab: 'Home' | 'Search' | 'Library';
-  onTabChange: (tab: 'Home' | 'Search' | 'Library') => void;
+  currentTab: 'Home' | 'Search' | 'Library' | 'Admin';
+  onTabChange: (tab: 'Home' | 'Search' | 'Library' | 'Admin') => void;
+  isAdmin?: boolean;
 };
 
-export default function BottomNavBar({ currentTab, onTabChange }: BottomNavBarProps) {
+export default function BottomNavBar({ currentTab, onTabChange, isAdmin = false }: BottomNavBarProps) {
   const insets = useSafeAreaInsets();
+  const lastPressTime = useRef(0);
 
-  const handlePress = (tab: 'Home' | 'Search' | 'Library') => {
+  const handlePress = (tab: 'Home' | 'Search' | 'Library' | 'Admin') => {
+    // Prevent rapid clicking (debounce)
+    const now = Date.now();
+    if (now - lastPressTime.current < 300) {
+      return;
+    }
+    lastPressTime.current = now;
+
+    // Don't navigate if already on the current tab
+    if (tab === currentTab) {
+      return;
+    }
+
     onTabChange(tab);
-    router.replace(`screens/${tab}`); // replace with tab route
+    router.push(`screens/${tab}`); // push for smoother transitions
   };
 
   return (
@@ -37,6 +51,14 @@ export default function BottomNavBar({ currentTab, onTabChange }: BottomNavBarPr
         onPress={() => handlePress('Library')}
         active={currentTab === 'Library'}
       />
+      {isAdmin && (
+        <NavButton
+          iconName="shield-checkmark"
+          label="Admin"
+          onPress={() => handlePress('Admin')}
+          active={currentTab === 'Admin'}
+        />
+      )}
     </View>
   );
 }

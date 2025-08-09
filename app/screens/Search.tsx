@@ -12,17 +12,23 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import useAudioPlayer from '../hooks/useAudioPlayer';
+import { useAudioPlayer } from '../context/AudioPlayerContext';
+import { useWebSocket } from '../context/WebSocketContext';
 import QueueBar from '../components/QueueBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavBar from '../components/navbar';
+import { useAdmin } from '../context/AdminContext';
+import SongOptionsSheet from '../components/SongOptionsSheet';
+import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
+import { type PlaylistSong } from '../services/playlistService';
 
 type Song = {
   title: string;
   artist: string;
   image: string;
-  url: string;
+  duration: number; // Add duration field
+  url?: string; // Optional since we get the actual URL from WebSocket server
 };
 
 export default function SearchScreen() {
@@ -30,10 +36,16 @@ export default function SearchScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(false);
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showSongOptions, setShowSongOptions] = useState(false);
+  const [selectedSong, setSelectedSong] = useState<PlaylistSong | null>(null);
+  const [showAddToPlaylistSheet, setShowAddToPlaylistSheet] = useState(false);
+  const [downloadingSongs, setDownloadingSongs] = useState<Set<string>>(new Set());
+  const { ws, sessionKey, sendEncryptedMessage, addMessageListener, removeMessageListener } = useWebSocket();
 
-  const { streamSong } = useAudioPlayer();
+  const { streamSong, addToQueue } = useAudioPlayer();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isAdmin } = useAdmin();
 
   const searchSongs = useCallback(async (q: string) => {
     if (!q.trim()) {
@@ -49,11 +61,11 @@ export default function SearchScreen() {
         title: item.title || 'Unknown Title',
         artist: item.artist?.name || 'Unknown Artist',
         image: item.album?.cover_big || '',
-        url: item.preview || '', // Deezer provides 30s preview URL, optional
+        duration: item.duration || 0, // Extract duration from Deezer API response
+        // Remove the preview URL since we'll get the actual song URL from the WebSocket server
       }));
       setSongs(results);
     } catch (error) {
-      console.error('Search error:', error);
       setSongs([]);
     } finally {
       setLoading(false);
@@ -75,9 +87,14 @@ export default function SearchScreen() {
       style={styles.songItem}
       onPress={async () => {
         console.log(`Selected song ${item.title} by ${item.artist}`);
+        console.log('Song data:', item);
+        
+        // Always use streamSong to get the song from the WebSocket server
+        console.log('Using streamSong to get song from WebSocket server');
         streamSong({
           ...item,
-          duration: (item as any).duration ?? 0,
+          url: '', // Dummy URL since streamSong doesn't use it - the real URL comes from WebSocket response
+          duration: item.duration,
         });
       }}
     >
@@ -90,16 +107,141 @@ export default function SearchScreen() {
         <Text style={styles.songTitle}>{item.title}</Text>
         <Text style={styles.songArtist}>{item.artist}</Text>
       </View>
-      <Ionicons name="ellipsis-vertical" size={20} color="white" />
+      <TouchableOpacity
+        style={styles.addToPlaylistButton}
+        onPress={() => {
+          setSelectedSong({
+            id: `${item.title}-${item.artist}-${Date.now()}`, // Generate a unique ID with timestamp
+            title: item.title,
+            artist: item.artist,
+            image: item.image,
+            duration: item.duration,
+          });
+          setShowSongOptions(true);
+        }}
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color="#1DB954" />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
-const [currentTab, setCurrentTab] = useState<'Home' | 'Search' | 'Library'>('Search');
+  const [currentTab, setCurrentTab] = useState<'Home' | 'Search' | 'Library' | 'Admin'>('Search');
 
   // This function is called when a tab is clicked
-  const handleTabChange = (tab: 'Home' | 'Search' | 'Library') => {
+  const handleTabChange = (tab: 'Home' | 'Search' | 'Library' | 'Admin') => {
     setCurrentTab(tab);
     // The router.replace is handled inside BottomNavBar onPress
+  };
+
+  const handlePlayNow = async (song: PlaylistSong) => {
+    try {
+      await streamSong({
+        title: song.title,
+        artist: song.artist,
+        image: song.image,
+        url: '',
+        duration: song.duration,
+      });
+    } catch (error) {
+      // Error handling without debug logging
+    }
+  };
+
+  const handleAddToQueue = async (song: PlaylistSong) => {
+    try {
+      if (!ws || !sessionKey) {
+        return;
+      }
+
+      const songKey = `${song.title}-${song.artist}`;
+      setDownloadingSongs(prev => new Set(prev).add(songKey));
+
+      const songMetaData = {
+        action: 'stream-song',
+        title: song.title,
+        artist: song.artist,
+        image: song.image,
+      };
+      
+      const messageListener = (data: any) => {
+        if (data.success && data.type === 'url' && 
+            data.title === song.title && data.artist === song.artist) {
+          
+          removeMessageListener('stream-song', messageListener);
+          
+          let serverUrl = '';
+          AsyncStorage.getItem('server_url').then(storedUrl => {
+            serverUrl = (storedUrl || '').replace(/^wss?:\/\//, '');
+            let songUrl = data.url?.replace('URLPATH', `${serverUrl}`) ?? '';
+            
+            if (songUrl && !songUrl.startsWith('http://') && !songUrl.startsWith('https://')) {
+              songUrl = `http://${songUrl}`;
+            }
+
+            if (!songUrl) {
+              setDownloadingSongs(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(songKey);
+                return newSet;
+              });
+              return;
+            }
+
+            const songWithData = {
+              title: data.title ?? song.title,
+              artist: data.artist ?? song.artist,
+              image: data.image ?? song.image,
+              url: songUrl,
+              duration: data.duration && typeof data.duration === 'number' && data.duration > 0 
+                ? (data.duration < 1000 ? data.duration * 1000 : data.duration)
+                : song.duration || 180000,
+            };
+
+            setDownloadingSongs(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(songKey);
+              return newSet;
+            });
+
+            addToQueue(songWithData);
+          });
+        } else if (data.error && data.title === song.title && data.artist === song.artist) {
+          removeMessageListener('stream-song', messageListener);
+          setDownloadingSongs(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(songKey);
+            return newSet;
+          });
+        }
+      };
+
+      addMessageListener('stream-song', messageListener);
+      sendEncryptedMessage(songMetaData);
+
+      setTimeout(() => {
+        removeMessageListener('stream-song', messageListener);
+        setDownloadingSongs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(songKey);
+          return newSet;
+        });
+      }, 30000);
+    } catch (error) {
+      // Error handling without debug logging
+    }
+  };
+
+  const handleAddToPlaylist = (song: PlaylistSong) => {
+    // This function is now handled internally by SongOptionsSheet
+    // The AddToPlaylistModal will be shown automatically
+  };
+
+  const handleShowAddToPlaylistSheet = () => {
+    setShowAddToPlaylistSheet(true);
+  };
+
+  const handleCloseAddToPlaylistSheet = () => {
+    setShowAddToPlaylistSheet(false);
   };
 
   return (
@@ -140,7 +282,29 @@ const [currentTab, setCurrentTab] = useState<'Home' | 'Search' | 'Library'>('Sea
 
       <QueueBar />
 
-      <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} />
+      <SongOptionsSheet
+        visible={showSongOptions}
+        onClose={() => {
+          setShowSongOptions(false);
+          // Don't clear selectedSong here - keep it for AddToPlaylistSheet
+        }}
+        song={selectedSong}
+        onPlayNow={handlePlayNow}
+        onAddToQueue={handleAddToQueue}
+        onAddToPlaylist={handleAddToPlaylist}
+        onShowAddToPlaylistModal={handleShowAddToPlaylistSheet}
+      />
+
+      <AddToPlaylistSheet
+        visible={showAddToPlaylistSheet}
+        onClose={() => {
+          handleCloseAddToPlaylistSheet();
+          setSelectedSong(null); // Clear song only when AddToPlaylistSheet closes
+        }}
+        song={selectedSong}
+      />
+
+      <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} isAdmin={isAdmin || false} />
     </View>
   );
 }
@@ -196,5 +360,8 @@ const styles = StyleSheet.create({
   noResults: {
     marginTop: 40,
     alignItems: 'center',
+  },
+  addToPlaylistButton: {
+    padding: 4,
   },
 });

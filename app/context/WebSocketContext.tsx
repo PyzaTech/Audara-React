@@ -27,7 +27,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isConnected, setIsConnected] = useState(false);
   const [sessionKey, setSessionKey] = useState<CryptoJS.lib.WordArray | null>(null);
   const sessionKeyRef = useRef<CryptoJS.lib.WordArray | null>(null);
-  const heartbeatTimer = useRef<number | null>(null);
+  const heartbeatTimer = useRef<any>(null);
 
   const messageListenersByAction = useRef<Map<string, MessageListener[]>>(new Map());
 
@@ -138,6 +138,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             logger.warn(`⚠️ No listeners registered for action: ${action}`);
           }
 
+          console.log(`📨 Dispatching message to ${listeners.length} listeners for action: ${action}`);
           listeners.forEach((listener) => listener(decryptedData));
         } else {
           logger.log('📬 Dispatching unencrypted message:', parsed);
@@ -151,6 +152,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             logger.warn(`⚠️ No listeners registered for action: ${action}`);
           }
 
+          console.log(`📨 Dispatching unencrypted message to ${listeners.length} listeners for action: ${action}`);
           listeners.forEach((listener) => listener(parsed));
         }
       } catch (err) {

@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import useAudioPlayer from '../hooks/useAudioPlayer';
+import { useAudioPlayer } from '../context/AudioPlayerContext';
 import Slider from '@react-native-community/slider';
 import { Easing } from 'react-native';
 import VolumeControl from './volume_control';
@@ -40,26 +40,15 @@ export default function QueueBar() {
     currentPositionMillis,
     durationMillis,
     isCurrentSongDownloading,
-    debugAudioState,
     queue,
+    currentIndex,
   } = useAudioPlayer();
 
   // Calculate the bottom position based on navbar height and safe area
-  const navbarBaseHeight = 80; // Base height of the navbar
+  const navbarBaseHeight = 70; // Base height of the navbar
   const navbarPaddingBottom = Math.max(insets.bottom, 12); // Same as navbar
   const navbarTotalHeight = navbarBaseHeight + navbarPaddingBottom;
   const queueBarBottom = navbarTotalHeight + 1; // +1 for the border
-
-  // Debug positioning changes
-  useEffect(() => {
-    console.log('QueueBar positioning updated:', {
-      insetsBottom: insets.bottom,
-      navbarPaddingBottom,
-      navbarTotalHeight,
-      queueBarBottom,
-      windowHeight
-    });
-  }, [insets.bottom, navbarPaddingBottom, navbarTotalHeight, queueBarBottom, windowHeight]);
 
   const downloadAnimation = useRef(new Animated.Value(0)).current;
 
@@ -90,20 +79,14 @@ export default function QueueBar() {
 
 const togglePlayPause = async () => {
   if (isCurrentSongDownloading) {
-    console.log('Cannot toggle play/pause while song is downloading');
     return;
   }
 
-  console.log('Toggle play/pause clicked. Current state - isPlaying:', isPlaying);
   try {
     if (isPlaying) {
-      console.log('Attempting to pause playback...');
       await pausePlayback();
-      console.log('Pause operation completed');
     } else {
-      console.log('Attempting to resume playback...');
       await resumePlayback();
-      console.log('Resume operation completed');
     }
   } catch (error) {
     console.error('Error toggling play/pause:', error);
@@ -164,10 +147,6 @@ const togglePlayPause = async () => {
 
           <TouchableOpacity onPress={playNext} style={styles.controlButton}>
             <Ionicons name="play-skip-forward" size={28} color="white" />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={debugAudioState} style={styles.controlButton}>
-            <Ionicons name="bug" size={20} color="yellow" />
           </TouchableOpacity>
         </View>
       </View>

@@ -6,14 +6,17 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  Alert,
   Dimensions,
   StatusBar,
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAudioPlayer } from '../context/AudioPlayerContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
-import useAudioPlayer from '../hooks/useAudioPlayer';
+import QueueSheet from '../components/QueueSheet';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -40,6 +43,7 @@ export default function SongDetailScreen() {
   } = useAudioPlayer();
 
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [showQueueSheet, setShowQueueSheet] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'off' | 'one' | 'all'>('off');
@@ -158,6 +162,16 @@ export default function SongDetailScreen() {
   // Use current song or first song in queue as fallback
   const displaySong = currentSong || (queue.length > 0 ? queue[0] : null);
 
+  // Debug logging for duration and position
+  console.log('SongDetail - Duration debug:', {
+    currentPositionMillis,
+    durationMillis,
+    currentSong: currentSong?.title,
+    currentSongDuration: currentSong?.duration,
+    formattedPosition: formatTime(currentPositionMillis),
+    formattedDuration: formatTime(durationMillis)
+  });
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -180,11 +194,11 @@ export default function SongDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+             <ScrollView 
+         style={styles.content}
+         showsVerticalScrollIndicator={false}
+         contentContainerStyle={styles.contentContainer}
+       >
         <Animated.View 
           style={[
             styles.mainContent,
@@ -303,15 +317,38 @@ export default function SongDetailScreen() {
           )}
 
           {/* Queue Info */}
-          {queue.length > 1 && (
-            <View style={styles.queueInfo}>
-              <Text style={styles.queueText}>
-                {queue.length - (currentIndex + 1)} more in queue
-              </Text>
-            </View>
+          {queue.length > 0 && (
+            <TouchableOpacity 
+              style={styles.queueInfo}
+              onPress={() => setShowQueueSheet(true)}
+            >
+              <View style={styles.queueInfoContent}>
+                <View style={styles.queueTextContainer}>
+                  <Text style={styles.queueText}>
+                    {queue.length === 1 ? '1 song in queue' : `${queue.length} songs in queue`}
+                  </Text>
+                  {currentIndex < queue.length - 1 && (
+                    <Text style={styles.upcomingText}>
+                      Next: {queue[currentIndex + 1]?.title}
+                    </Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-up" size={16} color="#b3b3b3" />
+              </View>
+            </TouchableOpacity>
           )}
-        </Animated.View>
-      </ScrollView>
+                 </Animated.View>
+       </ScrollView>
+
+      {/* Queue Sheet */}
+      <QueueSheet
+        visible={showQueueSheet}
+        onClose={() => setShowQueueSheet(false)}
+        queue={queue}
+        currentIndex={currentIndex}
+        isPlaying={isPlaying}
+        onPlaySongAtIndex={playSongAtIndex}
+      />
     </View>
   );
 }
@@ -357,16 +394,19 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  scrollContent: {
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingBottom: 40,
   },
   mainContent: {
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   albumArtContainer: {
-    marginTop: 40,
-    marginBottom: 40,
+    marginTop: 0,
+    marginBottom: 0,
   },
   albumArt: {
     width: screenWidth - 80,
@@ -383,7 +423,7 @@ const styles = StyleSheet.create({
   },
   songInfo: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 0,
     width: '100%',
   },
   songTitle: {
@@ -401,7 +441,7 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     width: '100%',
-    marginBottom: 40,
+    marginBottom: 0,
   },
   progressSlider: {
     width: '100%',
@@ -430,7 +470,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 40,
+    marginBottom: 0,
     paddingHorizontal: 20,
   },
   controlButton: {
@@ -457,7 +497,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     width: '100%',
-    marginBottom: 30,
+    marginBottom: 0,
   },
   secondaryButton: {
     padding: 12,
@@ -486,9 +526,24 @@ const styles = StyleSheet.create({
     borderTopColor: '#282828',
     width: '100%',
   },
+  queueInfoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  queueTextContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
   queueText: {
     color: '#b3b3b3',
     fontSize: 14,
+  },
+  upcomingText: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
   },
   emptyState: {
     flex: 1,

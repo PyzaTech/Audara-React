@@ -3,11 +3,14 @@ import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useWebSocket } from '../context/WebSocketContext';
+import { useAdmin } from '../context/AdminContext';
 import { logger } from '../utils/_logger';
+import { DEBUG_MODE } from '../config/debug';
 
 export default function LoadingScreen() {
   const router = useRouter();
   const { connect, disconnect, sessionKey, isConnected, sendEncryptedMessage, addMessageListener, removeMessageListener } = useWebSocket();
+  const { setAdminStatusFromLogin } = useAdmin();
 
   useEffect(() => {
     let initialized = false;
@@ -18,14 +21,14 @@ export default function LoadingScreen() {
       const password = await AsyncStorage.getItem('password');
 
       if (!url || url === "") {
-        router.replace('/screens/SelectServer');
+        router.push('/screens/SelectServer');
         return;
       }
 
       const isValid = await testConnection(url);
 
       if (!isValid) {
-        router.replace('/screens/SelectServer');
+        router.push('/screens/SelectServer');
         return;
       }
 
@@ -53,11 +56,18 @@ useEffect(() => {
       AsyncStorage.setItem('username', data.username);
       AsyncStorage.setItem('password', data.password);
 
-      router.replace('/screens/Home');
+      const adminStatus = data.isAdmin !== undefined ? data.isAdmin : data.is_admin;
+      
+      if (adminStatus !== undefined) {
+        if (DEBUG_MODE) logger.log('LoadingScreen - Setting admin status from login response:', adminStatus);
+        setAdminStatusFromLogin(adminStatus);
+      }
+
+      router.push('/screens/Home');
     } else {
       console.log('❌ Login failed:', data.error);
       Alert.alert('Login Failed', data.error || 'Unknown error');
-      router.replace('/screens/Start');
+      router.push('/screens/Start');
     }
   };
 
@@ -81,7 +91,7 @@ useEffect(() => {
     const password = await AsyncStorage.getItem('password');
 
     if (!username || !password) {
-      router.replace('/screens/Start');
+      router.push('/screens/Start');
       return;
     }
 
@@ -99,21 +109,7 @@ useEffect(() => {
 
   };
 
-const handleLoginResponse = (data: any) => {
-      console.log('🔐 Login response received:', data);
 
-      if (data.success) {
-        console.log('✅ Login successful:', data);
-
-        AsyncStorage.setItem('username', data.username);
-        AsyncStorage.setItem('password', data.password);
-
-        router.replace('/screens/Home');
-      } else {
-        console.log('❌ Login failed:', data.error);
-        Alert.alert('Login Failed', data.error || 'Unknown error');
-      }
-};
 
   return (
     <View style={styles.loading}>

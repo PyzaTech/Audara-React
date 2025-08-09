@@ -4,31 +4,43 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import useAudioPlayer from '../hooks/useAudioPlayer';
+import { useAudioPlayer } from '../context/AudioPlayerContext';
 import QueueBar from '../components/QueueBar';
-import DebugPanel from '../components/DebugPanel';
 import { useWebSocket } from '../context/WebSocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomNavBar from '../components/navbar';
+import { DEBUG_MODE } from '../config/debug';
+import { logger } from '../utils/_logger';
+import { useAdmin } from '../context/AdminContext';
+import SongOptionsSheet from '../components/SongOptionsSheet';
+import AddToPlaylistSheet from '../components/AddToPlaylistSheet';
+import { type PlaylistSong } from '../services/playlistService';
 
 export default function HomeScreen() {
   const [username, setUsername] = useState('User');
   const [profilePictureUrl, setProfilePictureUrl] = useState('');
   const [randomPicks, setRandomPicks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showSongOptions, setShowSongOptions] = useState(false);
+  const [selectedSong, setSelectedSong] = useState<PlaylistSong | null>(null);
+  const [showAddToPlaylistSheet, setShowAddToPlaylistSheet] = useState(false);
 
-  const { streamSong, isPlaying, pausePlayback, resumePlayback, stopPlayback } = useAudioPlayer();
-  const { ws, isConnected } = useWebSocket();
+  const { streamSong, isPlaying, pausePlayback, resumePlayback, stopPlayback, addToQueue } = useAudioPlayer();
+  const { ws, isConnected, sessionKey, sendEncryptedMessage, addMessageListener, removeMessageListener } = useWebSocket();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   // New state for dropdown visibility
   const [menuVisible, setMenuVisible] = useState(false);
+  const { isAdmin } = useAdmin();
+
+  // New state for downloading songs
+  const [downloadingSongs, setDownloadingSongs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!ws || !isConnected) {
       const timer = setTimeout(() => {
-        router.replace('/screens/LoadingScreen');
+        router.push('/screens/LoadingScreen');
       }, 0);
 
       return () => clearTimeout(timer);
@@ -53,6 +65,7 @@ export default function HomeScreen() {
           title: item?.title ?? 'Unknown Title',
           artist: item?.artist?.name ?? 'Unknown Artist',
           image: item?.album?.cover_big ?? '',
+          duration: item?.duration ?? 0, // Extract duration from Deezer API response
         }));
 
         tracks = tracks.sort(() => 0.5 - Math.random()).slice(0, 10);
@@ -70,13 +83,133 @@ export default function HomeScreen() {
 
   const handleLogout = async () => {
     console.log("Logging out...")
-    await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password']);
+    await AsyncStorage.multiRemove(['username', 'profilePictureUrl', 'password', 'isAdmin']);
     stopPlayback();
-    router.replace('/screens/SelectServer');
+    router.push('/screens/SelectServer');
   };
 
   // Toggle menu visibility on avatar press
   const toggleMenu = () => setMenuVisible((prev) => !prev);
+
+  const handlePlayNow = async (song: PlaylistSong) => {
+    try {
+      await streamSong({
+        title: song.title,
+        artist: song.artist,
+        image: song.image,
+        url: '',
+        duration: song.duration,
+      });
+    } catch (error) {
+      if (DEBUG_MODE) logger.error('Error playing song:', error);
+    }
+  };
+
+  const handleAddToQueue = async (song: PlaylistSong) => {
+    try {
+      if (DEBUG_MODE) logger.log('Adding song to queue:', song);
+      
+      if (!ws || !sessionKey) {
+        if (DEBUG_MODE) logger.error('WebSocket or session key is missing');
+        return;
+      }
+
+      const songKey = `${song.title}-${song.artist}`;
+      setDownloadingSongs(prev => new Set(prev).add(songKey));
+
+      const songMetaData = {
+        action: 'stream-song',
+        title: song.title,
+        artist: song.artist,
+        image: song.image,
+      };
+
+      if (DEBUG_MODE) logger.log('Requesting song data for queue:', songMetaData);
+      
+      const messageListener = (data: any) => {
+        if (data.success && data.type === 'url' && 
+            data.title === song.title && data.artist === song.artist) {
+          
+          removeMessageListener('stream-song', messageListener);
+          
+          let serverUrl = '';
+          AsyncStorage.getItem('server_url').then(storedUrl => {
+            serverUrl = (storedUrl || '').replace(/^wss?:\/\//, '');
+            let songUrl = data.url?.replace('URLPATH', `${serverUrl}`) ?? '';
+            
+            if (songUrl && !songUrl.startsWith('http://') && !songUrl.startsWith('https://')) {
+              songUrl = `http://${songUrl}`;
+            }
+
+            if (!songUrl) {
+              if (DEBUG_MODE) logger.error('Received invalid song URL');
+              setDownloadingSongs(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(songKey);
+                return newSet;
+              });
+              return;
+            }
+
+            const songWithData = {
+              title: data.title ?? song.title,
+              artist: data.artist ?? song.artist,
+              image: data.image ?? song.image,
+              url: songUrl,
+              duration: data.duration && typeof data.duration === 'number' && data.duration > 0 
+                ? (data.duration < 1000 ? data.duration * 1000 : data.duration)
+                : song.duration || 180000,
+            };
+
+            setDownloadingSongs(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(songKey);
+              return newSet;
+            });
+
+            if (DEBUG_MODE) logger.log('Song data received, adding to queue:', songWithData);
+            addToQueue(songWithData);
+          });
+        } else if (data.error && data.title === song.title && data.artist === song.artist) {
+          removeMessageListener('stream-song', messageListener);
+          setDownloadingSongs(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(songKey);
+            return newSet;
+          });
+          if (DEBUG_MODE) logger.error('Error requesting song data:', data.error);
+        }
+      };
+
+      addMessageListener('stream-song', messageListener);
+      sendEncryptedMessage(songMetaData);
+
+      setTimeout(() => {
+        removeMessageListener('stream-song', messageListener);
+        setDownloadingSongs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(songKey);
+          return newSet;
+        });
+        if (DEBUG_MODE) logger.error('Request timeout for song data');
+      }, 30000);
+    } catch (error) {
+      if (DEBUG_MODE) logger.error('Error adding song to queue:', error);
+    }
+  };
+
+  const handleAddToPlaylist = (song: PlaylistSong) => {
+    // This function is now handled internally by SongOptionsSheet
+    // The AddToPlaylistModal will be shown automatically
+  };
+
+  const handleShowAddToPlaylistSheet = () => {
+    setShowAddToPlaylistSheet(true);
+  };
+
+  const handleCloseAddToPlaylistSheet = () => {
+    setShowAddToPlaylistSheet(false);
+  };
 
   const renderSong = ({ item }: { item: Song }) => (
     <TouchableOpacity
@@ -95,7 +228,21 @@ export default function HomeScreen() {
         <Text style={{ color: 'white', fontSize: 16 }}>{item.title}</Text>
         <Text style={{ color: 'gray', fontSize: 14 }}>{item.artist}</Text>
       </View>
-      <Ionicons name="ellipsis-vertical" size={20} color="white" />
+      <TouchableOpacity
+        style={{ padding: 4 }}
+        onPress={() => {
+          setSelectedSong({
+            id: `${item.title}-${item.artist}-${Date.now()}`, // Generate a unique ID with timestamp
+            title: item.title,
+            artist: item.artist,
+            image: item.image,
+            duration: item.duration,
+          });
+          setShowSongOptions(true);
+        }}
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color="#1DB954" />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -129,10 +276,10 @@ export default function HomeScreen() {
     </View>
   );
 
-  const [currentTab, setCurrentTab] = useState<'Home' | 'Search' | 'Library'>('Home');
+  const [currentTab, setCurrentTab] = useState<'Home' | 'Search' | 'Library' | 'Admin'>('Home');
 
   // This function is called when a tab is clicked
-  const handleTabChange = (tab: 'Home' | 'Search' | 'Library') => {
+  const handleTabChange = (tab: 'Home' | 'Search' | 'Library' | 'Admin') => {
     setCurrentTab(tab);
     // The router.replace is handled inside BottomNavBar onPress
   };
@@ -194,6 +341,17 @@ return (
         >
           <Text style={styles.menuText}>Settings</Text>
         </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              setMenuVisible(false);
+              router.push('/screens/Admin');
+            }}
+          >
+            <Text style={[styles.menuText, { color: '#1DB954' }]}>Admin Dashboard</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={styles.menuItem}
           onPress={async () => {
@@ -208,8 +366,30 @@ return (
     )}
 
     <QueueBar />
-    <DebugPanel />
-    <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} />
+    
+    <SongOptionsSheet
+      visible={showSongOptions}
+      onClose={() => {
+        setShowSongOptions(false);
+        // Don't clear selectedSong here - keep it for AddToPlaylistSheet
+      }}
+      song={selectedSong}
+      onPlayNow={handlePlayNow}
+      onAddToQueue={handleAddToQueue}
+      onAddToPlaylist={handleAddToPlaylist}
+      onShowAddToPlaylistModal={handleShowAddToPlaylistSheet}
+    />
+
+    <AddToPlaylistSheet
+      visible={showAddToPlaylistSheet}
+      onClose={() => {
+        handleCloseAddToPlaylistSheet();
+        setSelectedSong(null); // Clear song only when AddToPlaylistSheet closes
+      }}
+      song={selectedSong}
+    />
+    
+    <BottomNavBar currentTab={currentTab} onTabChange={handleTabChange} isAdmin={isAdmin || false} />
   </View>
 );
 }

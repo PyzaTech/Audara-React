@@ -3,7 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWebSocket } from '../context/WebSocketContext';
+import { useAdmin } from '../context/AdminContext';
 import { Platform } from 'react-native';
+import { DEBUG_MODE } from '../config/debug';
+import { logger } from '../utils/_logger';
 
 export default function LoginScreen() {
   const loginPasswordRef = useRef<string | null>(null);
@@ -18,6 +21,7 @@ export default function LoginScreen() {
     addMessageListener,
     removeMessageListener,
   } = useWebSocket();
+  const { setAdminStatusFromLogin } = useAdmin();
 
   useEffect(() => {
     if (!sessionKey) return;
@@ -33,10 +37,16 @@ export default function LoginScreen() {
         if (loginPasswordRef.current) {
           await AsyncStorage.setItem('password', loginPasswordRef.current);
         }
+        const adminStatus = data.isAdmin !== undefined ? data.isAdmin : data.is_admin;
+        
+        if (adminStatus !== undefined) {
+          if (DEBUG_MODE) logger.log('Setting admin status from login response:', adminStatus);
+          setAdminStatusFromLogin(adminStatus);
+        }
 
         setTimeout(() => {
           setLoading(false);
-          router.replace('/screens/Home');
+          router.push('/screens/Home');
         }, 300);
       } else {
         console.log('❌ Login failed:', data.error);
